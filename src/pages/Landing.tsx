@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Wallet, TrendingUp, Receipt, Shield, Zap, Users } from "lucide-react";
+import { Wallet, TrendingUp, Receipt } from "lucide-react";
 import heroIllustration from "@/assets/hero-illustration.png";
 
 const Landing = () => {
@@ -140,88 +140,6 @@ const Landing = () => {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section className="py-20 px-4 md:px-8 bg-muted/30">
-        <div className="container mx-auto max-w-4xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4 text-foreground">Simple, Honest Pricing</h2>
-            <p className="text-xl text-muted-foreground">No hidden fees. No surprises.</p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-8">
-            <Card className="border-2">
-              <CardContent className="pt-8 pb-8 space-y-6">
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-bold text-foreground">Free Forever</h3>
-                  <p className="text-muted-foreground">Perfect for getting started</p>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-bold text-foreground">$0</span>
-                    <span className="text-muted-foreground">/month</span>
-                  </div>
-                  <ul className="space-y-3">
-                    <li className="flex items-start gap-3">
-                      <Shield className="w-5 h-5 text-secondary mt-0.5" />
-                      <span className="text-foreground">All 6 tabs included</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <Shield className="w-5 h-5 text-secondary mt-0.5" />
-                      <span className="text-foreground">Unlimited accounts</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <Shield className="w-5 h-5 text-secondary mt-0.5" />
-                      <span className="text-foreground">Basic reports</span>
-                    </li>
-                  </ul>
-                </div>
-                <Button variant="outline" size="lg" className="w-full" onClick={() => navigate("/auth")}>
-                  Start Free
-                </Button>
-              </CardContent>
-            </Card>
-            
-            <Card className="border-2 border-secondary relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-secondary text-secondary-foreground px-4 py-1 text-sm font-semibold">
-                Coming Soon
-              </div>
-              <CardContent className="pt-8 pb-8 space-y-6">
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-bold text-foreground">Premium</h3>
-                  <p className="text-muted-foreground">For power users</p>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-bold text-foreground">$1</span>
-                    <span className="text-muted-foreground">/month</span>
-                  </div>
-                  <ul className="space-y-3">
-                    <li className="flex items-start gap-3">
-                      <Zap className="w-5 h-5 text-secondary mt-0.5" />
-                      <span className="text-foreground">Everything in Free</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <Zap className="w-5 h-5 text-secondary mt-0.5" />
-                      <span className="text-foreground">Advanced analytics</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <Zap className="w-5 h-5 text-secondary mt-0.5" />
-                      <span className="text-foreground">Bank sync (coming soon)</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <Zap className="w-5 h-5 text-secondary mt-0.5" />
-                      <span className="text-foreground">Priority support</span>
-                    </li>
-                  </ul>
-                </div>
-                <Button variant="secondary" size="lg" className="w-full" disabled>
-                  Coming Soon
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </section>
