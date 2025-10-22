@@ -13,7 +13,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
-import AppNav from "@/components/AppNav";
 
 type BankAccount = {
   id: string;
@@ -46,16 +45,8 @@ const Income = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    checkAuth();
     fetchData();
   }, []);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/auth");
-    }
-  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -163,18 +154,14 @@ const Income = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-96">
         <Loader2 className="w-8 h-8 animate-spin text-secondary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppNav />
-      
-      <main className="md:ml-64 p-4 md:p-8 pb-24 md:pb-8">
-        <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-foreground">Income Tab 💵</h1>
@@ -360,8 +347,6 @@ const Income = () => {
               })}
             </div>
           )}
-        </div>
-      </main>
     </div>
   );
 };

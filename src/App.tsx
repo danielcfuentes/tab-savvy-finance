@@ -12,6 +12,8 @@ import Bills from "./pages/Bills";
 import CloseOut from "./pages/CloseOut";
 import Survivor from "./pages/Survivor";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
 
 const queryClient = new QueryClient();
 
@@ -24,12 +26,14 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/income" element={<Income />} />
-          <Route path="/coaster" element={<Coaster />} />
-          <Route path="/bills" element={<Bills />} />
-          <Route path="/closeout" element={<CloseOut />} />
-          <Route path="/survivor" element={<Survivor />} />
+          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="income" element={<Income />} />
+            <Route path="coaster" element={<Coaster />} />
+            <Route path="bills" element={<Bills />} />
+            <Route path="closeout" element={<CloseOut />} />
+            <Route path="survivor" element={<Survivor />} />
+          </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

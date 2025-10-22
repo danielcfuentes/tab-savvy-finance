@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,8 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2 } from "lucide-react";
-import AppNav from "@/components/AppNav";
+import { Loader2, Plus, Trash2, Edit } from "lucide-react";
 
 type BankAccount = {
   id: string;
@@ -22,6 +22,8 @@ const Dashboard = () => {
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     account_type: "checking",
@@ -31,16 +33,8 @@ const Dashboard = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    checkAuth();
     fetchAccounts();
   }, []);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/auth");
-    }
-  };
 
   const fetchAccounts = async () => {
     setLoading(true);
@@ -91,6 +85,48 @@ const Dashboard = () => {
     }
   };
 
+  const handleEditAccount = (account: BankAccount) => {
+    setEditingAccount(account);
+    setFormData({
+      name: account.name,
+      account_type: account.account_type,
+      balance: account.balance.toString(),
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingAccount) return;
+
+    const { error } = await supabase
+      .from("bank_accounts")
+      .update({
+        name: formData.name,
+        account_type: formData.account_type,
+        balance: parseFloat(formData.balance),
+      })
+      .eq("id", editingAccount.id);
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update account",
+      });
+    } else {
+      toast({
+        title: "Success!",
+        description: "Account updated",
+      });
+      setEditDialogOpen(false);
+      setEditingAccount(null);
+      setFormData({ name: "", account_type: "checking", balance: "" });
+      fetchAccounts();
+    }
+  };
+
   const handleDeleteAccount = async (id: string) => {
     const { error } = await supabase
       .from("bank_accounts")
@@ -120,18 +156,14 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-96">
         <Loader2 className="w-8 h-8 animate-spin text-secondary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppNav />
-      
-      <main className="md:ml-64 p-4 md:p-8 pb-24 md:pb-8">
-        <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-foreground">Bank Tab 🏦</h1>
@@ -198,6 +230,63 @@ const Dashboard = () => {
                 </form>
               </DialogContent>
             </Dialog>
+
+            {/* Edit Account Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Bank Account</DialogTitle>
+                  <DialogDescription>
+                    Update your account information
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleUpdateAccount} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Account Name</Label>
+                    <Input
+                      id="edit-name"
+                      placeholder="My Checking Account"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-type">Account Type</Label>
+                    <Select
+                      value={formData.account_type}
+                      onValueChange={(value) => setFormData({ ...formData, account_type: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="checking">Checking</SelectItem>
+                        <SelectItem value="savings">Savings</SelectItem>
+                        <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
+                        <SelectItem value="credit_card">Credit Card</SelectItem>
+                        <SelectItem value="loan">Loan</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-balance">Current Balance</Label>
+                    <Input
+                      id="edit-balance"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={formData.balance}
+                      onChange={(e) => setFormData({ ...formData, balance: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" variant="secondary">
+                    Update Account
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <Card className="border-2 bg-secondary/10">
@@ -233,13 +322,22 @@ const Dashboard = () => {
                         <CardTitle>{account.name}</CardTitle>
                         <CardDescription>{formatAccountType(account.account_type)}</CardDescription>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteAccount(account.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditAccount(account)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteAccount(account.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -251,8 +349,6 @@ const Dashboard = () => {
               ))}
             </div>
           )}
-        </div>
-      </main>
     </div>
   );
 };
