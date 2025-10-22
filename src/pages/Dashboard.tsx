@@ -159,7 +159,16 @@ const Dashboard = () => {
     }).format(amount);
   };
 
-  const totalBalance = accounts.reduce((sum, acc) => sum + Number(acc.balance), 0);
+  const bankAccounts = accounts.filter(acc => 
+    ['checking', 'savings', 'digital_wallet'].includes(acc.account_type)
+  );
+  const debtAccounts = accounts.filter(acc => 
+    ['credit_card', 'loan'].includes(acc.account_type)
+  );
+  
+  const bankBalance = bankAccounts.reduce((sum, acc) => sum + Number(acc.balance), 0);
+  const debtBalance = debtAccounts.reduce((sum, acc) => sum + Number(acc.balance), 0);
+  const netWorth = bankBalance - Math.abs(debtBalance);
 
   if (loading) {
     return (
@@ -172,12 +181,9 @@ const Dashboard = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex justify-between items-center">
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-foreground flex items-center gap-3">
-                <span className="text-4xl">🏦</span>
-                Bank Tab
-              </h1>
-              <p className="text-muted-foreground text-lg">Manage your accounts and track your balance</p>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Bank Tab 🏦</h1>
+              <p className="text-muted-foreground">Manage your accounts</p>
             </div>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
@@ -299,23 +305,49 @@ const Dashboard = () => {
             </Dialog>
           </div>
 
-          <Card className="border-2 bg-gradient-to-br from-primary/5 via-secondary/5 to-primary/10 border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <span className="text-primary">💰</span>
-                Total Balance
-              </CardTitle>
-              <CardDescription className="text-base">Your combined account balance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-5xl font-bold text-primary mb-2">
-                ${formatCurrency(totalBalance)}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Across {accounts.length} account{accounts.length !== 1 ? 's' : ''}
-              </p>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="border-2 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+              <CardHeader>
+                <CardTitle className="text-xl text-green-700 dark:text-green-300">💰 Bank Balances</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                  ${formatCurrency(bankBalance)}
+                </p>
+                <p className="text-sm text-green-600/70 dark:text-green-400/70 mt-1">
+                  {bankAccounts.length} account{bankAccounts.length !== 1 ? 's' : ''}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+              <CardHeader>
+                <CardTitle className="text-xl text-red-700 dark:text-red-300">💳 Debt Balances</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-red-600 dark:text-red-400">
+                  ${formatCurrency(Math.abs(debtBalance))}
+                </p>
+                <p className="text-sm text-red-600/70 dark:text-red-400/70 mt-1">
+                  {debtAccounts.length} account{debtAccounts.length !== 1 ? 's' : ''}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+              <CardHeader>
+                <CardTitle className="text-xl text-blue-700 dark:text-blue-300">📊 Net Worth</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className={`text-3xl font-bold ${netWorth >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
+                  ${formatCurrency(netWorth)}
+                </p>
+                <p className="text-sm text-blue-600/70 dark:text-blue-400/70 mt-1">
+                  Total financial position
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
           {accounts.length === 0 ? (
             <Card className="border-2">
@@ -331,20 +363,21 @@ const Dashboard = () => {
             </Card>
           ) : (
             <div className="grid gap-4">
-              {accounts.map((account) => (
-                <Card key={account.id} className="border-2 hover:shadow-card-hover transition-all duration-300 border-primary/20 hover:border-primary/40 hover:scale-[1.02] group">
-                  <CardHeader className="pb-3">
+              {accounts.map((account) => {
+                const isDebtAccount = ['credit_card', 'loan'].includes(account.account_type);
+                return (
+                <Card key={account.id} className="border-2 hover:shadow-card-hover transition-smooth">
+                  <CardHeader>
                     <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <CardTitle className="text-xl group-hover:text-primary transition-colors">{account.name}</CardTitle>
-                        <CardDescription className="text-sm">{formatAccountType(account.account_type)}</CardDescription>
+                      <div>
+                        <CardTitle>{account.name}</CardTitle>
+                        <CardDescription>{formatAccountType(account.account_type)}</CardDescription>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditAccount(account)}
-                          className="h-8 w-8 hover:bg-primary/10"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -352,7 +385,6 @@ const Dashboard = () => {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteAccount(account.id)}
-                          className="h-8 w-8 hover:bg-destructive/10"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -360,12 +392,13 @@ const Dashboard = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-4xl font-bold text-primary">
+                    <p className={`text-3xl font-bold ${isDebtAccount ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                       ${formatCurrency(Number(account.balance))}
                     </p>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
     </div>

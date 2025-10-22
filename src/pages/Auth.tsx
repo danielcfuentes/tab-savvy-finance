@@ -55,9 +55,12 @@ const Auth = () => {
       });
     } else {
       toast({
-        title: "Success!",
-        description: "Account created successfully. You're now logged in.",
+        title: "Account created!",
+        description: "Please check your email to confirm your account, then sign in.",
       });
+      // Clear the form
+      setEmail("");
+      setPassword("");
     }
   };
 

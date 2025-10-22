@@ -40,38 +40,31 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-24 px-4 md:px-8 gradient-hero">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent"></div>
-        <div className="container mx-auto max-w-6xl relative z-10">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            <div className="space-y-8 animate-fade-in">
-              <div className="space-y-4">
-                <h1 className="text-6xl md:text-7xl font-bold leading-tight text-white">
-                  Take Control of Your Money —{" "}
-                  <span className="text-accent drop-shadow-lg">One Tab at a Time</span>
-                </h1>
-                <p className="text-xl text-white/90 leading-relaxed max-w-lg">
-                  A daily budgeting tool built around the bar tab metaphor.{" "}
-                  <span className="font-semibold text-white">Simple. Visual. Personal.</span>
-                </p>
-              </div>
+      <section className="relative overflow-hidden py-20 px-4 md:px-8">
+        <div className="container mx-auto max-w-6xl">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6 animate-fade-in">
+              <h1 className="text-5xl md:text-6xl font-bold leading-tight text-foreground">
+                Take Control of Your Money —{" "}
+                <span className="text-secondary">One Tab at a Time</span>
+              </h1>
+              <p className="text-xl text-muted-foreground">
+                A daily budgeting tool built around the bar tab metaphor.{" "}
+                <span className="font-semibold text-foreground">Simple. Visual. Personal.</span>
+              </p>
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Button 
-                  variant="default" 
+                  variant="hero" 
                   size="lg" 
                   onClick={() => navigate("/auth")}
-                  className="text-lg bg-white text-primary hover:bg-white/90 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
+                  className="text-lg"
                 >
-                  <span className="flex items-center gap-2">
-                    Open Your Tab
-                    <span className="text-primary">→</span>
-                  </span>
+                  Open Your Tab → Get Started
                 </Button>
                 <Button 
                   variant="outline" 
                   size="lg"
                   onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
-                  className="border-white/30 text-white bg-white/10 hover:bg-white/20 hover:border-white/50 backdrop-blur-sm transition-all duration-300"
                 >
                   Learn How It Works
                 </Button>

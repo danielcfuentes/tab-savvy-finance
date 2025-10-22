@@ -163,12 +163,9 @@ const Income = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex justify-between items-center">
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-foreground flex items-center gap-3">
-                <span className="text-4xl">💵</span>
-                Income Tab
-              </h1>
-              <p className="text-muted-foreground text-lg">Track your paychecks and income sources</p>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Income Tab 💵</h1>
+              <p className="text-muted-foreground">Track your paychecks</p>
             </div>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
@@ -270,20 +267,17 @@ const Income = () => {
             </Dialog>
           </div>
 
-          <Card className="border-2 bg-gradient-to-br from-primary/5 via-secondary/5 to-primary/10 border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <span className="text-primary">💤</span>
-                Coasting Days
-              </CardTitle>
-              <CardDescription className="text-base">Days until your next paycheck</CardDescription>
+          <Card className="border-2 bg-secondary/10">
+            <CardHeader>
+              <CardTitle className="text-2xl">Coasting Days 💤</CardTitle>
+              <CardDescription>Days until your next paycheck</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-5xl font-bold text-primary mb-2">
+              <p className="text-4xl font-bold text-secondary">
                 {coastingDays >= 0 ? `${coastingDays} days` : "No income scheduled"}
               </p>
               {getNextIncomeDate() && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground mt-2">
                   Next income: {format(getNextIncomeDate()!, "PPP")}
                 </p>
               )}
@@ -307,7 +301,7 @@ const Income = () => {
               {incomes.map((income) => {
                 const daysUntil = differenceInDays(new Date(income.due_date), new Date());
                 return (
-                  <Card key={income.id} className="border-2 hover:shadow-card-hover transition-all duration-300 border-primary/20 hover:border-primary/40 hover:scale-[1.02] group">
+                  <Card key={income.id} className="border-2 hover:shadow-card-hover transition-smooth">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div className="space-y-1">
@@ -329,13 +323,13 @@ const Income = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm text-muted-foreground mb-1">This Month</p>
-                          <p className="text-2xl font-bold text-primary">
+                          <p className="text-2xl font-bold text-foreground">
                             ${Number(income.amount_now).toFixed(2)}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground mb-1">Next Month</p>
-                          <p className="text-2xl font-bold text-primary">
+                          <p className="text-2xl font-bold text-foreground">
                             ${Number(income.amount_next).toFixed(2)}
                           </p>
                         </div>
