@@ -152,6 +152,13 @@ const Dashboard = () => {
     return type.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
   const totalBalance = accounts.reduce((sum, acc) => sum + Number(acc.balance), 0);
 
   if (loading) {
@@ -295,7 +302,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <p className="text-4xl font-bold text-secondary">
-                ${totalBalance.toFixed(2)}
+                ${formatCurrency(totalBalance)}
               </p>
             </CardContent>
           </Card>
@@ -342,7 +349,7 @@ const Dashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <p className="text-3xl font-bold text-foreground">
-                      ${Number(account.balance).toFixed(2)}
+                      ${formatCurrency(Number(account.balance))}
                     </p>
                   </CardContent>
                 </Card>
