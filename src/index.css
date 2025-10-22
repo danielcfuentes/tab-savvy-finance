@@ -8,80 +8,82 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* My Budget Bar Theme - Bar Tab Inspired */
-    --background: 30 20% 96%;  /* Sand background */
-    --foreground: 220 35% 17%;  /* Deep navy text */
+    /* Sage Green Theme - Sophisticated & Professional */
+    --background: 0 0% 100%;  /* Pure white background */
+    --foreground: 120 15% 20%;  /* Dark sage green text */
 
     --card: 0 0% 100%;  /* White cards */
-    --card-foreground: 220 35% 17%;
+    --card-foreground: 120 15% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 35% 17%;
+    --popover-foreground: 120 15% 20%;
 
-    --primary: 220 35% 17%;  /* Deep navy */
-    --primary-foreground: 30 20% 96%;
+    --primary: 120 25% 35%;  /* Dark sage green #4A6741 */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 35 88% 73%;  /* Coral accent */
-    --secondary-foreground: 220 35% 17%;
+    --secondary: 120 40% 60%;  /* Medium sage green */
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 30 15% 90%;
-    --muted-foreground: 220 15% 45%;
+    --muted: 120 15% 95%;  /* Very light sage grey */
+    --muted-foreground: 120 15% 35%;
 
-    --accent: 35 88% 73%;  /* Coral */
-    --accent-foreground: 220 35% 17%;
+    --accent: 120 50% 45%;  /* Brighter sage green */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 60% 58%;  /* Balanced red */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 20% 88%;
-    --input: 30 20% 88%;
-    --ring: 35 88% 73%;
+    --border: 120 10% 90%;  /* Light sage grey borders */
+    --input: 120 10% 90%;
+    --ring: 120 25% 35%;
 
-    --radius: 1rem;  /* Larger radius for card-like feel */
+    --radius: 0.75rem;  /* Slightly smaller radius for cleaner look */
 
     /* Custom gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(35 88% 73%), hsl(35 75% 65%));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(30 20% 98%));
+    --gradient-hero: linear-gradient(135deg, hsl(120 25% 35%), hsl(120 40% 60%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(120 15% 98%));
+    --gradient-success: linear-gradient(135deg, hsl(120 50% 45%), hsl(120 40% 60%));
     
     /* Shadows */
-    --shadow-card: 0 4px 20px -4px hsl(220 35% 17% / 0.1);
-    --shadow-hover: 0 8px 30px -6px hsl(220 35% 17% / 0.15);
+    --shadow-card: 0 2px 8px -2px hsl(120 15% 20% / 0.08);
+    --shadow-hover: 0 4px 16px -4px hsl(120 15% 20% / 0.12);
     
     /* Transitions */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
-    --background: 220 35% 12%;
-    --foreground: 30 20% 96%;
+    /* Dark Mode - Sophisticated Dark Sage */
+    --background: 120 15% 8%;  /* Very dark sage */
+    --foreground: 120 10% 90%;  /* Light sage text */
 
-    --card: 220 30% 15%;
-    --card-foreground: 30 20% 96%;
+    --card: 120 10% 12%;  /* Slightly lighter dark sage */
+    --card-foreground: 120 10% 90%;
 
-    --popover: 220 30% 15%;
-    --popover-foreground: 30 20% 96%;
+    --popover: 120 10% 12%;
+    --popover-foreground: 120 10% 90%;
 
-    --primary: 35 88% 73%;
-    --primary-foreground: 220 35% 17%;
+    --primary: 120 25% 45%;  /* Lighter sage green for dark mode */
+    --primary-foreground: 120 15% 8%;
 
-    --secondary: 220 25% 20%;
-    --secondary-foreground: 30 20% 96%;
+    --secondary: 120 10% 20%;  /* Dark sage grey */
+    --secondary-foreground: 120 10% 90%;
 
-    --muted: 220 25% 20%;
-    --muted-foreground: 30 15% 70%;
+    --muted: 120 10% 20%;
+    --muted-foreground: 120 10% 70%;
 
-    --accent: 35 88% 73%;
-    --accent-foreground: 220 35% 17%;
+    --accent: 120 25% 45%;
+    --accent-foreground: 120 15% 8%;
 
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 30 20% 96%;
+    --destructive: 0 60% 58%;
+    --destructive-foreground: 120 10% 90%;
 
-    --border: 220 25% 20%;
-    --input: 220 25% 20%;
-    --ring: 35 88% 73%;
+    --border: 120 10% 20%;
+    --input: 120 10% 20%;
+    --ring: 120 25% 45%;
 
-    --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
-    --shadow-hover: 0 8px 30px -6px hsl(0 0% 0% / 0.4);
+    --shadow-card: 0 2px 8px -2px hsl(0 0% 0% / 0.3);
+    --shadow-hover: 0 4px 16px -4px hsl(0 0% 0% / 0.4);
   }
 }
 

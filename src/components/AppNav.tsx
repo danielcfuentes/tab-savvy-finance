@@ -39,10 +39,13 @@ const AppNav = () => {
   return (
     <>
       {/* Desktop Navigation */}
-      <nav className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-card border-r flex-col p-4 shadow-card">
+      <nav className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-card border-r border-primary/10 flex-col p-6 shadow-lg">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-foreground">My Budget Bar</h2>
-          <p className="text-sm text-muted-foreground">Your Financial Tab</p>
+          <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
+            <span className="text-2xl">🍻</span>
+            My Budget Bar
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">Your Financial Tab</p>
         </div>
         
         <div className="flex-1 space-y-2">
@@ -53,7 +56,11 @@ const AppNav = () => {
               <Link key={item.path} to={item.path}>
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
-                  className="w-full justify-start gap-3"
+                  className={`w-full justify-start gap-3 transition-all duration-200 ${
+                    isActive 
+                      ? "bg-primary/10 text-primary border border-primary/20" 
+                      : "hover:bg-primary/5 hover:text-primary"
+                  }`}
                 >
                   <Icon className="w-5 h-5" />
                   {item.name}

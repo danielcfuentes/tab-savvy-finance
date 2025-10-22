@@ -172,9 +172,12 @@ const Dashboard = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Bank Tab 🏦</h1>
-              <p className="text-muted-foreground">Manage your accounts</p>
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold text-foreground flex items-center gap-3">
+                <span className="text-4xl">🏦</span>
+                Bank Tab
+              </h1>
+              <p className="text-muted-foreground text-lg">Manage your accounts and track your balance</p>
             </div>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
@@ -296,13 +299,20 @@ const Dashboard = () => {
             </Dialog>
           </div>
 
-          <Card className="border-2 bg-secondary/10">
-            <CardHeader>
-              <CardTitle className="text-2xl">Total Balance</CardTitle>
+          <Card className="border-2 bg-gradient-to-br from-primary/5 via-secondary/5 to-primary/10 border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <span className="text-primary">💰</span>
+                Total Balance
+              </CardTitle>
+              <CardDescription className="text-base">Your combined account balance</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-4xl font-bold text-secondary">
+              <p className="text-5xl font-bold text-primary mb-2">
                 ${formatCurrency(totalBalance)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Across {accounts.length} account{accounts.length !== 1 ? 's' : ''}
               </p>
             </CardContent>
           </Card>
@@ -322,18 +332,19 @@ const Dashboard = () => {
           ) : (
             <div className="grid gap-4">
               {accounts.map((account) => (
-                <Card key={account.id} className="border-2 hover:shadow-card-hover transition-smooth">
-                  <CardHeader>
+                <Card key={account.id} className="border-2 hover:shadow-card-hover transition-all duration-300 border-primary/20 hover:border-primary/40 hover:scale-[1.02] group">
+                  <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle>{account.name}</CardTitle>
-                        <CardDescription>{formatAccountType(account.account_type)}</CardDescription>
+                      <div className="space-y-1">
+                        <CardTitle className="text-xl group-hover:text-primary transition-colors">{account.name}</CardTitle>
+                        <CardDescription className="text-sm">{formatAccountType(account.account_type)}</CardDescription>
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditAccount(account)}
+                          className="h-8 w-8 hover:bg-primary/10"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -341,6 +352,7 @@ const Dashboard = () => {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteAccount(account.id)}
+                          className="h-8 w-8 hover:bg-destructive/10"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -348,7 +360,7 @@ const Dashboard = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-3xl font-bold text-foreground">
+                    <p className="text-4xl font-bold text-primary">
                       ${formatCurrency(Number(account.balance))}
                     </p>
                   </CardContent>

@@ -40,31 +40,42 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 px-4 md:px-8">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6 animate-fade-in">
-              <h1 className="text-5xl md:text-6xl font-bold leading-tight text-foreground">
-                Take Control of Your Money —{" "}
-                <span className="text-secondary">One Tab at a Time</span>
-              </h1>
-              <p className="text-xl text-muted-foreground">
-                A daily budgeting tool built around the bar tab metaphor.{" "}
-                <span className="font-semibold text-foreground">Simple. Visual. Personal.</span>
-              </p>
+      <section className="relative overflow-hidden py-24 px-4 md:px-8 gradient-hero">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent"></div>
+        <div className="container mx-auto max-w-6xl relative z-10">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <div className="space-y-8 animate-fade-in">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-white/90 text-sm font-medium">
+                  <span className="w-2 h-2 bg-accent rounded-full animate-pulse"></span>
+                  Financial Wellness Made Simple
+                </div>
+                <h1 className="text-6xl md:text-7xl font-bold leading-tight text-white">
+                  Take Control of Your Money —{" "}
+                  <span className="text-accent drop-shadow-lg">One Tab at a Time</span>
+                </h1>
+                <p className="text-xl text-white/90 leading-relaxed max-w-lg">
+                  A daily budgeting tool built around the bar tab metaphor.{" "}
+                  <span className="font-semibold text-white">Simple. Visual. Personal.</span>
+                </p>
+              </div>
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Button 
-                  variant="hero" 
+                  variant="default" 
                   size="lg" 
                   onClick={() => navigate("/auth")}
-                  className="text-lg"
+                  className="text-lg bg-white text-primary hover:bg-white/90 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
                 >
-                  Open Your Tab → Get Started
+                  <span className="flex items-center gap-2">
+                    Open Your Tab
+                    <span className="text-primary">→</span>
+                  </span>
                 </Button>
                 <Button 
                   variant="outline" 
                   size="lg"
                   onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
+                  className="border-white/30 text-white hover:bg-white/10 hover:border-white/50 backdrop-blur-sm transition-all duration-300"
                 >
                   Learn How It Works
                 </Button>
