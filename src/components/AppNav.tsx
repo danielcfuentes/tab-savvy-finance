@@ -1,14 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
-import { Wallet, TrendingUp, Beer, FileText, CheckCircle, LifeBuoy, LogOut } from "lucide-react";
+import { Wallet, TrendingUp, Beer, FileText, CheckCircle, LifeBuoy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import Profile from "./Profile";
 
 const AppNav = () => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { toast } = useToast();
 
   const navItems = [
     { name: "Bank", path: "/dashboard", icon: Wallet },
@@ -19,21 +15,8 @@ const AppNav = () => {
     { name: "Survivor", path: "/survivor", icon: LifeBuoy },
   ];
 
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to log out",
-      });
-    } else {
-      toast({
-        title: "Logged out",
-        description: "See you next time!",
-      });
-      navigate("/");
-    }
+  const handleProfileClick = () => {
+    // This will be handled by the Profile component's dialog
   };
 
   return (
@@ -61,17 +44,13 @@ const AppNav = () => {
               </Link>
             );
           })}
+          <Profile />
         </div>
-
-        <Button variant="ghost" className="mt-auto justify-start gap-3" onClick={handleLogout}>
-          <LogOut className="w-5 h-5" />
-          Logout
-        </Button>
       </nav>
 
       {/* Mobile Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 shadow-card">
-        <div className="grid grid-cols-6 gap-1 p-2">
+        <div className="grid grid-cols-7 gap-1 p-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -79,15 +58,16 @@ const AppNav = () => {
               <Link key={item.path} to={item.path}>
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
-                  className="w-full h-14 flex-col gap-1 px-1"
+                  className="h-12 flex-col gap-1 px-1"
                   size="sm"
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-4 h-4" />
                   <span className="text-xs">{item.name}</span>
                 </Button>
               </Link>
             );
           })}
+          <Profile />
         </div>
       </nav>
     </>

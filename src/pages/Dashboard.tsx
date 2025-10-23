@@ -168,7 +168,6 @@ const Dashboard = () => {
   
   const bankBalance = bankAccounts.reduce((sum, acc) => sum + Number(acc.balance), 0);
   const debtBalance = debtAccounts.reduce((sum, acc) => sum + Number(acc.balance), 0);
-  const netWorth = bankBalance - Math.abs(debtBalance);
 
   if (loading) {
     return (
@@ -305,7 +304,7 @@ const Dashboard = () => {
             </Dialog>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <Card className="border-2 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
               <CardHeader>
                 <CardTitle className="text-xl text-green-700 dark:text-green-300">💰 Bank Balances</CardTitle>
@@ -320,30 +319,16 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-2 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+            <Card className="border-2 bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800">
               <CardHeader>
-                <CardTitle className="text-xl text-red-700 dark:text-red-300">💳 Debt Balances</CardTitle>
+                <CardTitle className="text-xl text-yellow-700 dark:text-yellow-300">💳 Debt Balances</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-red-600 dark:text-red-400">
+                <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">
                   ${formatCurrency(Math.abs(debtBalance))}
                 </p>
-                <p className="text-sm text-red-600/70 dark:text-red-400/70 mt-1">
+                <p className="text-sm text-yellow-600/70 dark:text-yellow-400/70 mt-1">
                   {debtAccounts.length} account{debtAccounts.length !== 1 ? 's' : ''}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-2 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-              <CardHeader>
-                <CardTitle className="text-xl text-blue-700 dark:text-blue-300">📊 Net Worth</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className={`text-3xl font-bold ${netWorth >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
-                  ${formatCurrency(netWorth)}
-                </p>
-                <p className="text-sm text-blue-600/70 dark:text-blue-400/70 mt-1">
-                  Total financial position
                 </p>
               </CardContent>
             </Card>
@@ -392,7 +377,7 @@ const Dashboard = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className={`text-3xl font-bold ${isDebtAccount ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                    <p className={`text-3xl font-bold ${isDebtAccount ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}`}>
                       ${formatCurrency(Number(account.balance))}
                     </p>
                   </CardContent>
