@@ -102,9 +102,9 @@ const Profile = () => {
         </Button>
       </DialogTrigger>
       <DialogTrigger asChild>
-        <Button variant="ghost" className="h-12 flex-col gap-1 px-1 md:hidden" size="sm">
-          <User className="w-4 h-4" />
-          <span className="text-xs">Profile</span>
+        <Button variant="ghost" className="h-12 flex-col gap-0.5 px-0.5 text-xs md:hidden" size="sm">
+          <User className="w-3.5 h-3.5" />
+          <span className="text-xs leading-tight">Profile</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">

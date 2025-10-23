@@ -306,28 +306,28 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <Card className="border-2 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
-              <CardHeader>
-                <CardTitle className="text-xl text-green-700 dark:text-green-300">💰 Bank Balances</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg md:text-xl text-green-700 dark:text-green-300">💰 Bank Balances</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+              <CardContent className="pt-2">
+                <p className="text-xl md:text-3xl font-bold text-green-600 dark:text-green-400 break-words">
                   ${formatCurrency(bankBalance)}
                 </p>
-                <p className="text-sm text-green-600/70 dark:text-green-400/70 mt-1">
+                <p className="text-xs md:text-sm text-green-600/70 dark:text-green-400/70 mt-1">
                   {bankAccounts.length} account{bankAccounts.length !== 1 ? 's' : ''}
                 </p>
               </CardContent>
             </Card>
 
             <Card className="border-2 bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800">
-              <CardHeader>
-                <CardTitle className="text-xl text-yellow-700 dark:text-yellow-300">💳 Debt Balances</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg md:text-xl text-yellow-700 dark:text-yellow-300">💳 Debt Balances</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+              <CardContent className="pt-2">
+                <p className="text-xl md:text-3xl font-bold text-orange-600 dark:text-orange-400 break-words">
                   ${formatCurrency(Math.abs(debtBalance))}
                 </p>
-                <p className="text-sm text-yellow-600/70 dark:text-yellow-400/70 mt-1">
+                <p className="text-xs md:text-sm text-yellow-600/70 dark:text-yellow-400/70 mt-1">
                   {debtAccounts.length} account{debtAccounts.length !== 1 ? 's' : ''}
                 </p>
               </CardContent>
