@@ -11,8 +11,8 @@ import { Progress } from "@/components/ui/progress";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Calendar as CalendarIcon, TrendingDown, TrendingUp } from "lucide-react";
-import { format } from "date-fns";
+import { Loader2, Plus, Trash2, Calendar as CalendarIcon, TrendingDown, TrendingUp, Info } from "lucide-react";
+import { format, startOfToday, differenceInDays, isToday, isPast, isFuture } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getRealBankBalance, getCoastingDays, getDailyBudget, getSpendingPace, getNextIncomeDue } from "@/lib/calculations";
 import type { BankAccount, CoasterItem, IncomeItem } from "@/lib/calculations";
@@ -154,7 +154,7 @@ const Coaster = () => {
   const nextIncome = getNextIncomeDue(incomes);
   const coastingDays = getCoastingDays(nextIncome);
   const dailyBudget = getDailyBudget(realBalance, coastingDays);
-  const spendingPace = getSpendingPace(coasterItems, dailyBudget, coastingDays);
+  const spendingPace = getSpendingPace(coasterItems, dailyBudget, coastingDays, nextIncome);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -164,7 +164,7 @@ const Coaster = () => {
   };
 
   const progressPercentage = coastingDays > 0 && spendingPace.projectedSpend > 0
-    ? Math.min(100, (spendingPace.spentTotal / spendingPace.projectedSpend) * 100)
+    ? Math.min(100, (spendingPace.spentInCoastingPeriod / spendingPace.projectedSpend) * 100)
     : 0;
 
   const isOnTrack = spendingPace.isOnTrack;
@@ -245,6 +245,36 @@ const Coaster = () => {
                       selected={expenseDate}
                       onSelect={(date) => date && setExpenseDate(date)}
                       initialFocus
+                      modifiers={{
+                        coastingDays: nextIncome ? (() => {
+                          const days: Date[] = [];
+                          const today = startOfToday();
+                          const endDate = new Date(nextIncome);
+                          today.setHours(0, 0, 0, 0);
+                          endDate.setHours(0, 0, 0, 0);
+                          
+                          for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
+                            days.push(new Date(d));
+                          }
+                          return days;
+                        })() : [],
+                        nextPayday: nextIncome ? [new Date(nextIncome)] : [],
+                      }}
+                      modifiersClassNames={{
+                        coastingDays: "bg-secondary/20 text-secondary rounded-full",
+                        nextPayday: "bg-secondary text-secondary-foreground rounded-full font-bold ring-2 ring-secondary",
+                      }}
+                      disabled={(date) => {
+                        const today = startOfToday();
+                        date.setHours(0, 0, 0, 0);
+                        const maxDate = nextIncome || new Date();
+                        if (nextIncome) {
+                          maxDate.setHours(0, 0, 0, 0);
+                          return date < today || date > maxDate;
+                        }
+                        maxDate.setDate(maxDate.getDate() + 30);
+                        return date < today || date > maxDate;
+                      }}
                     />
                   </PopoverContent>
                 </Popover>
@@ -295,95 +325,136 @@ const Coaster = () => {
 
       {/* Summary Bar */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className={cn(
-          "border-2",
-          realBalance >= 0 ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" 
-          : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
-        )}>
-          <CardHeader className="pb-2">
-            <CardTitle className={cn(
-              "text-lg md:text-xl",
-              realBalance >= 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"
-            )}>
-              💰 Real Bank Balance
-            </CardTitle>
-            <CardDescription>
-              Bank accounts minus expenses through today
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className={cn(
-              "text-xl md:text-3xl font-bold break-words",
-              realBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-            )}>
-              ${formatCurrency(Math.abs(realBalance))}
-              {realBalance < 0 && " ⚠️"}
-            </p>
-          </CardContent>
-        </Card>
+          <Card className={cn(
+            "border-2",
+            realBalance >= 0 ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" 
+            : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+          )}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <CardTitle className={cn(
+                  "text-lg md:text-xl",
+                  realBalance >= 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"
+                )}>
+                  💰 Real Bank Balance
+                </CardTitle>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button type="button" className="touch-manipulation">
+                      <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="max-w-[260px] text-sm" align="start">
+                    Real Bank Balance = sum of your linked bank account balances
+                    minus the total of Coaster expenses dated up to today.
+                    Updates instantly after you add or delete an expense.
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <CardDescription>
+                Bank accounts minus expenses through today
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className={cn(
+                "text-xl md:text-3xl font-bold break-words",
+                realBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+              )}>
+                ${formatCurrency(Math.abs(realBalance))}
+                {realBalance < 0 && " ⚠️"}
+              </p>
+            </CardContent>
+          </Card>
 
         <Card className="border-2">
           <CardHeader>
-            <CardTitle className="text-lg">📅 Coasting Calendar</CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">
-              {coastingDays} day{coastingDays !== 1 ? 's' : ''} until next paycheck
-              <span className="block mt-1">💡 Click on any day to add an expense</span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center">
-            <Calendar
-              mode="single"
-              modifiers={{
-                coastingDays: nextIncome ? (() => {
-                  const days: Date[] = [];
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg">📅 Coasting Calendar</CardTitle>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className="touch-manipulation">
+                    <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="max-w-[260px] text-sm" align="start">
+                  Coasting Days = number of days from today until your next
+                  income date. Use this window to pace daily spending.
+                </PopoverContent>
+              </Popover>
+            </div>
+              <CardDescription className="text-sm text-muted-foreground">
+                {coastingDays} day{coastingDays !== 1 ? 's' : ''} until next paycheck
+                <span className="block mt-1">💡 Click on any day to add an expense</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              <Calendar
+                mode="single"
+                modifiers={{
+                  coastingDays: nextIncome ? (() => {
+                    const days: Date[] = [];
+                    const today = new Date();
+                    const endDate = new Date(nextIncome);
+                    today.setHours(0, 0, 0, 0);
+                    endDate.setHours(0, 0, 0, 0);
+                    
+                    for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
+                      days.push(new Date(d));
+                    }
+                    return days;
+                  })() : [],
+                  nextPayday: nextIncome ? [new Date(nextIncome)] : [],
+                }}
+                modifiersClassNames={{
+                  coastingDays: "bg-secondary/20 text-secondary rounded-full",
+                  nextPayday: "bg-secondary text-secondary-foreground rounded-full font-bold ring-2 ring-secondary",
+                }}
+                disabled={(date) => {
                   const today = new Date();
-                  const endDate = new Date(nextIncome);
                   today.setHours(0, 0, 0, 0);
-                  endDate.setHours(0, 0, 0, 0);
-                  
-                  for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
-                    days.push(new Date(d));
+                  date.setHours(0, 0, 0, 0);
+                  // Allow dates from today up to next payday (or 30 days if no income set)
+                  const maxDate = nextIncome || new Date();
+                  if (nextIncome) {
+                    maxDate.setHours(0, 0, 0, 0);
+                    return date < today || date > maxDate;
                   }
-                  return days;
-                })() : [],
-                nextPayday: nextIncome ? [new Date(nextIncome)] : [],
-              }}
-              modifiersClassNames={{
-                coastingDays: "bg-secondary/20 text-secondary rounded-full",
-                nextPayday: "bg-secondary text-secondary-foreground rounded-full font-bold ring-2 ring-secondary",
-              }}
-              disabled={(date) => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                date.setHours(0, 0, 0, 0);
-                // Allow dates from today up to next payday (or 30 days if no income set)
-                const maxDate = nextIncome || new Date();
-                if (nextIncome) {
-                  maxDate.setHours(0, 0, 0, 0);
+                  maxDate.setDate(maxDate.getDate() + 30);
                   return date < today || date > maxDate;
-                }
-                maxDate.setDate(maxDate.getDate() + 30);
-                return date < today || date > maxDate;
-              }}
-              onSelect={(date) => {
-                if (date && (!nextIncome || date <= nextIncome)) {
-                  setExpenseDate(date);
-                  setDialogOpen(true);
-                }
-              }}
-              className="cursor-pointer"
-            />
-          </CardContent>
-        </Card>
-      </div>
+                }}
+                onSelect={(date) => {
+                  if (date && (!nextIncome || date <= nextIncome)) {
+                    setExpenseDate(date);
+                    setDialogOpen(true);
+                  }
+                }}
+                className="cursor-pointer"
+              />
+            </CardContent>
+          </Card>
+        </div>
 
       {/* Daily Budget and Progress */}
       {coastingDays > 0 && (
         <Card className="border-2">
           <CardHeader>
-            <CardTitle>Spending Dashboard</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>Spending Dashboard</CardTitle>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className="touch-manipulation">
+                    <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="max-w-[300px] text-sm" align="start">
+                  Daily Budget = Real Bank Balance ÷ Coasting Days. Coasting Expenses
+                  are expenses scheduled within the coasting period (today through next payday).
+                  Progress compares these expenses to your projected total budget for this period.
+                </PopoverContent>
+              </Popover>
+            </div>
             <CardDescription>
-              A simple guide: Daily Budget = Real Bank Balance ÷ days until next paycheck
+              A simple guide to pace your spending between paychecks.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -395,15 +466,15 @@ const Coaster = () => {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Spent Today</p>
+                <p className="text-sm text-muted-foreground mb-1">Coasting Expenses</p>
                 <p className="text-xl font-bold text-foreground">
-                  ${formatCurrency(spendingPace.spentToday)}
+                  ${formatCurrency(spendingPace.spentInCoastingPeriod)}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Total Spent</p>
+                <p className="text-sm text-muted-foreground mb-1">Projected Total</p>
                 <p className="text-xl font-bold text-foreground">
-                  ${formatCurrency(spendingPace.spentTotal)}
+                  ${formatCurrency(spendingPace.projectedSpend)}
                 </p>
               </div>
               <div>
@@ -424,13 +495,13 @@ const Coaster = () => {
               </div>
             </div>
             
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Spending Progress</span>
-                <span className="text-muted-foreground">
-                  {formatCurrency(spendingPace.spentTotal)} / {formatCurrency(spendingPace.projectedSpend)}
-                </span>
-              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Spending Progress</span>
+                  <span className="text-muted-foreground">
+                    {formatCurrency(spendingPace.spentInCoastingPeriod)} / {formatCurrency(spendingPace.projectedSpend)}
+                  </span>
+                </div>
               <Progress value={progressPercentage} className={cn("h-3", progressBarClasses)} />
             </div>
           </CardContent>
@@ -451,38 +522,69 @@ const Coaster = () => {
       </Card>
       ) : (
         <div className="grid gap-4">
-          {coasterItems.map((item) => (
-            <Card key={item.id} className="border-2 hover:shadow-card-hover transition-smooth">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <CardTitle>{item.name}</CardTitle>
-                      <Badge variant="secondary">{(item as any).category || "General"}</Badge>
+          {coasterItems.map((item) => {
+            const itemDate = new Date(item.expense_date);
+            itemDate.setHours(0, 0, 0, 0);
+            const today = startOfToday();
+            const isPastDate = isPast(itemDate) && !isToday(itemDate);
+            const isTodayDate = isToday(itemDate);
+            const isFutureDate = isFuture(itemDate);
+            const daysUntil = differenceInDays(itemDate, today);
+            
+            return (
+              <Card 
+                key={item.id} 
+                className={cn(
+                  "border-2 hover:shadow-card-hover transition-smooth",
+                  isPastDate && "opacity-60"
+                )}
+              >
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <CardTitle className={cn(isPastDate && "line-through text-muted-foreground")}>
+                          {item.name}
+                        </CardTitle>
+                        <Badge variant="secondary">{(item as any).category || "General"}</Badge>
+                        {isTodayDate && (
+                          <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">
+                            Today
+                          </Badge>
+                        )}
+                        {isFutureDate && daysUntil > 0 && (
+                          <Badge variant="outline" className="border-blue-300 text-blue-700 dark:text-blue-300">
+                            {daysUntil} day{daysUntil !== 1 ? 's' : ''} away
+                          </Badge>
+                        )}
+                      </div>
+                      <CardDescription className={cn(isPastDate && "line-through")}>
+                        {format(new Date(item.expense_date), "PPP")}
+                        {item.bank_account_id && bankAccounts.find(acc => acc.id === item.bank_account_id) && (
+                          ` • ${bankAccounts.find(acc => acc.id === item.bank_account_id)?.name}`
+                        )}
+                      </CardDescription>
                     </div>
-                    <CardDescription>
-                      {format(new Date(item.expense_date), "PPP")}
-                      {item.bank_account_id && bankAccounts.find(acc => acc.id === item.bank_account_id) && (
-                        ` • ${bankAccounts.find(acc => acc.id === item.bank_account_id)?.name}`
-                      )}
-                    </CardDescription>
+                    <div className="flex items-center gap-3">
+                      <p className={cn(
+                        "text-xl font-bold",
+                        isPastDate ? "text-muted-foreground line-through" : "text-foreground"
+                      )}>
+                        ${formatCurrency(Number(item.amount))}
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteExpense(item.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <p className="text-xl font-bold text-foreground">
-                      ${formatCurrency(Number(item.amount))}
-                    </p>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteExpense(item.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
+                </CardHeader>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

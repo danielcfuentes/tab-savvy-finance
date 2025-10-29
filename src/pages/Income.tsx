@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Plus, Trash2, Calendar as CalendarIcon, Info } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getNextIncomeDue, getCoastingDays, getTotalThisMonth } from "@/lib/calculations";
@@ -272,34 +272,70 @@ const Income = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border-2 bg-secondary/10">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base md:text-lg">💵 Next Income Due</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xl md:text-2xl font-bold text-secondary">
-                  {nextIncome ? format(nextIncome, "MMM d") : "–"}
-                </p>
-              </CardContent>
-            </Card>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base md:text-lg">💵 Next Income Due</CardTitle>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="touch-manipulation">
+                        <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="max-w-[260px] text-sm" align="start">
+                      The soonest scheduled income date in the future.
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xl md:text-2xl font-bold text-secondary">
+                    {nextIncome ? format(nextIncome, "MMM d") : "–"}
+                  </p>
+                </CardContent>
+              </Card>
 
             <Card className="border-2 bg-secondary/10">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base md:text-lg">⏱️ Coasting Days</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xl md:text-2xl font-bold text-secondary">
-                  {coastingDays} day{coastingDays !== 1 ? 's' : ''}
-                </p>
-              </CardContent>
-            </Card>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base md:text-lg">⏱️ Coasting Days</CardTitle>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="touch-manipulation">
+                        <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="max-w-[260px] text-sm" align="start">
+                      Number of days from today until the next income date.
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xl md:text-2xl font-bold text-secondary">
+                    {coastingDays} day{coastingDays !== 1 ? 's' : ''}
+                  </p>
+                </CardContent>
+              </Card>
 
             <Card className="border-2 bg-secondary/10">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base md:text-lg">📊 Total This Month</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xl md:text-2xl font-bold text-secondary">
-                  ${formatCurrency(totalThisMonth)}
-                </p>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base md:text-lg">📊 Total This Month</CardTitle>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="touch-manipulation">
+                        <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="max-w-[260px] text-sm" align="start">
+                      Sum of income amounts scheduled in the current calendar month.
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xl md:text-2xl font-bold text-secondary">
+                    ${formatCurrency(totalThisMonth)}
+                  </p>
               </CardContent>
             </Card>
           </div>

@@ -104,26 +104,34 @@ export function getDailyBudget(
 }
 
 /**
- * Calculate spending pace vs daily budget
+ * Calculate spending pace favoring coasting expenses vs daily budget
+ * Shows expenses scheduled within the coasting period (today through next payday)
  */
 export function getSpendingPace(
   coasterItems: CoasterItem[],
   dailyBudget: number,
-  coastingDays: number
+  coastingDays: number,
+  nextIncome: Date | null
 ): {
-  spentToday: number;
+  spentInCoastingPeriod: number;
   spentTotal: number;
   projectedSpend: number;
   isOnTrack: boolean;
 } {
   const today = startOfToday();
-  const spentToday = coasterItems
+  const endDate = nextIncome || new Date();
+  endDate.setHours(23, 59, 59, 999); // Include the full payday
+  
+  // Expenses scheduled within the coasting period (today through next payday)
+  const spentInCoastingPeriod = coasterItems
     .filter(item => {
       const itemDate = new Date(item.expense_date);
-      return itemDate.toDateString() === today.toDateString();
+      itemDate.setHours(0, 0, 0, 0);
+      return itemDate >= today && itemDate <= endDate;
     })
     .reduce((sum, item) => sum + Number(item.amount), 0);
 
+  // Total expenses through today (for Real Bank Balance calculation consistency)
   const spentTotal = coasterItems
     .filter(item => {
       const itemDate = new Date(item.expense_date);
@@ -131,11 +139,12 @@ export function getSpendingPace(
     })
     .reduce((sum, item) => sum + Number(item.amount), 0);
 
+  // Projected spend over the entire coasting period
   const projectedSpend = dailyBudget * coastingDays;
-  const isOnTrack = spentTotal <= projectedSpend;
+  const isOnTrack = spentInCoastingPeriod <= projectedSpend;
 
   return {
-    spentToday,
+    spentInCoastingPeriod,
     spentTotal,
     projectedSpend,
     isOnTrack,
