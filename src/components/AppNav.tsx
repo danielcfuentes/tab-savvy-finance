@@ -50,24 +50,26 @@ const AppNav = () => {
 
       {/* Mobile Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 shadow-card">
-        <div className="grid grid-cols-7 gap-0.5 p-1">
+        <div className="max-w-screen-sm mx-auto w-full px-2">
+          <div className="grid grid-cols-7 gap-1 py-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             return (
-              <Link key={item.path} to={item.path}>
+              <Link key={item.path} to={item.path} className="block w-full">
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
-                  className="h-12 flex-col gap-0.5 px-0.5 text-xs"
+                  className="h-12 w-full flex flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-medium"
                   size="sm"
                 >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span className="text-xs leading-tight">{item.name}</span>
+                  <Icon className="w-4 h-4" />
+                  <span className="leading-tight text-center">{item.name}</span>
                 </Button>
               </Link>
             );
           })}
           <Profile />
+          </div>
         </div>
       </nav>
     </>
