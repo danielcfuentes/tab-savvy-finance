@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getNextIncomeDue, getCoastingDays, getTotalThisMonth } from "@/lib/calculations";
+import type { IncomeItem } from "@/lib/calculations";
 
 type BankAccount = {
   id: string;
@@ -139,18 +141,17 @@ const Income = () => {
     }
   };
 
-  const getNextIncomeDate = () => {
-    if (incomes.length === 0) return null;
-    return new Date(incomes[0].due_date);
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
   };
 
-  const getCoastingDays = () => {
-    const nextDate = getNextIncomeDate();
-    if (!nextDate) return 0;
-    return differenceInDays(nextDate, new Date());
-  };
-
-  const coastingDays = getCoastingDays();
+  // Calculate summary metrics
+  const nextIncome = getNextIncomeDue(incomes as IncomeItem[]);
+  const coastingDays = getCoastingDays(nextIncome);
+  const totalThisMonth = getTotalThisMonth(incomes as IncomeItem[]);
 
   if (loading) {
     return (
@@ -191,7 +192,7 @@ const Income = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="amount_now">Amount This Month</Label>
+                    <Label htmlFor="amount_now">Income Amount for This Month</Label>
                     <Input
                       id="amount_now"
                       type="number"
@@ -203,7 +204,7 @@ const Income = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="amount_next">Amount Next Month</Label>
+                    <Label htmlFor="amount_next">Income Amount for Next Month</Label>
                     <Input
                       id="amount_next"
                       type="number"
@@ -215,7 +216,7 @@ const Income = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Due Date</Label>
+                    <Label>Income Due Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -241,7 +242,7 @@ const Income = () => {
                     </Popover>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="bank_account">Bank Account</Label>
+                    <Label htmlFor="bank_account">Bank Account for Income Item</Label>
                     <Select
                       value={formData.bank_account_id}
                       onValueChange={(value) => setFormData({ ...formData, bank_account_id: value })}
@@ -267,22 +268,41 @@ const Income = () => {
             </Dialog>
           </div>
 
-          <Card className="border-2 bg-secondary/10">
-            <CardHeader>
-              <CardTitle className="text-2xl">Coasting Days 💤</CardTitle>
-              <CardDescription>Days until your next paycheck</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-4xl font-bold text-secondary">
-                {coastingDays >= 0 ? `${coastingDays} days` : "No income scheduled"}
-              </p>
-              {getNextIncomeDate() && (
-                <p className="text-muted-foreground mt-2">
-                  Next income: {format(getNextIncomeDate()!, "PPP")}
+          {/* Summary Bar */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="border-2 bg-secondary/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base md:text-lg">💵 Next Income Due</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xl md:text-2xl font-bold text-secondary">
+                  {nextIncome ? format(nextIncome, "MMM d") : "–"}
                 </p>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 bg-secondary/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base md:text-lg">⏱️ Coasting Days</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xl md:text-2xl font-bold text-secondary">
+                  {coastingDays} day{coastingDays !== 1 ? 's' : ''}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 bg-secondary/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base md:text-lg">📊 Total This Month</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xl md:text-2xl font-bold text-secondary">
+                  ${formatCurrency(totalThisMonth)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
           {incomes.length === 0 ? (
             <Card className="border-2">

@@ -47,6 +47,8 @@ export type Database = {
       coaster_items: {
         Row: {
           amount: number
+          bank_account_id: string | null
+          category: string
           created_at: string | null
           expense_date: string
           id: string
@@ -56,6 +58,8 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          bank_account_id?: string | null
+          category?: string
           created_at?: string | null
           expense_date: string
           id?: string
@@ -65,6 +69,8 @@ export type Database = {
         }
         Update: {
           amount?: number
+          bank_account_id?: string | null
+          category?: string
           created_at?: string | null
           expense_date?: string
           id?: string
@@ -72,7 +78,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "coaster_items_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       income: {
         Row: {
