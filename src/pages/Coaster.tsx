@@ -12,7 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Calendar as CalendarIcon, TrendingDown, TrendingUp } from "lucide-react";
-import { format, startOfToday, addDays, differenceInDays } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getRealBankBalance, getCoastingDays, getDailyBudget, getSpendingPace, getNextIncomeDue } from "@/lib/calculations";
 import type { BankAccount, CoasterItem, IncomeItem } from "@/lib/calculations";
@@ -87,22 +87,34 @@ const Coaster = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    const { error } = await supabase.from("coaster_items").insert({
-      user_id: session.user.id,
-      name: formData.name,
-      amount: parseFloat(formData.amount),
-      expense_date: expenseDate.toISOString(),
-      bank_account_id: formData.bank_account_id || null,
-      category: formData.category,
-    });
+    try {
+      const basePayload: any = {
+        user_id: session.user.id,
+        name: formData.name,
+        amount: parseFloat(formData.amount),
+        expense_date: expenseDate.toISOString(),
+      };
 
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to add expense",
-      });
-    } else {
+      const withOptional: any = { ...basePayload };
+      if (formData.bank_account_id) withOptional.bank_account_id = formData.bank_account_id;
+      if (formData.category) withOptional.category = formData.category;
+
+      let { error } = await supabase.from("coaster_items").insert(withOptional);
+
+      // If backend schema doesn't have one of the optional columns, retry by stripping only that column
+      if (error && error.code === "PGRST204") {
+        const message = String(error.message || "");
+        const retryPayload: any = { ...withOptional };
+        if (message.includes("bank_account_id")) delete retryPayload.bank_account_id;
+        if (message.includes("category")) delete retryPayload.category;
+        const retry = await supabase.from("coaster_items").insert(retryPayload);
+        error = retry.error;
+      }
+
+      if (error) {
+        throw error;
+      }
+
       toast({
         title: "Success! 🍺",
         description: "Expense added",
@@ -110,6 +122,13 @@ const Coaster = () => {
       setDialogOpen(false);
       setFormData({ name: "", amount: "", bank_account_id: "", category: "General" });
       fetchData();
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err?.message || "Failed to add expense",
+      });
+      console.error("Failed to add expense:", err);
     }
   };
 
@@ -147,6 +166,11 @@ const Coaster = () => {
   const progressPercentage = coastingDays > 0 && spendingPace.projectedSpend > 0
     ? Math.min(100, (spendingPace.spentTotal / spendingPace.projectedSpend) * 100)
     : 0;
+
+  const isOnTrack = spendingPace.isOnTrack;
+  const progressBarClasses = isOnTrack
+    ? "bg-green-200 dark:bg-green-950/30 [&>div]:bg-green-600 dark:[&>div]:bg-green-400"
+    : "bg-red-200 dark:bg-red-950/30 [&>div]:bg-red-600 dark:[&>div]:bg-red-400";
 
   const categories = ["General", "Food", "Transport", "Entertainment", "Shopping", "Bills", "Other"];
 
@@ -283,6 +307,9 @@ const Coaster = () => {
             )}>
               💰 Real Bank Balance
             </CardTitle>
+            <CardDescription>
+              Bank accounts minus expenses through today
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <p className={cn(
@@ -354,9 +381,9 @@ const Coaster = () => {
       {coastingDays > 0 && (
         <Card className="border-2">
           <CardHeader>
-            <CardTitle>Daily Budget Dashboard</CardTitle>
+            <CardTitle>Spending Dashboard</CardTitle>
             <CardDescription>
-              Track your spending pace
+              A simple guide: Daily Budget = Real Bank Balance ÷ days until next paycheck
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -382,16 +409,16 @@ const Coaster = () => {
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Status</p>
                 <div className="flex items-center gap-2">
-                  {spendingPace.isOnTrack ? (
+                  {isOnTrack ? (
                     <TrendingUp className="w-5 h-5 text-green-600" />
                   ) : (
                     <TrendingDown className="w-5 h-5 text-red-600" />
                   )}
                   <p className={cn(
                     "text-lg font-bold",
-                    spendingPace.isOnTrack ? "text-green-600" : "text-red-600"
+                    isOnTrack ? "text-green-600" : "text-red-600"
                   )}>
-                    {spendingPace.isOnTrack ? "On Track" : "Over Budget"}
+                    {isOnTrack ? "On Track" : "Over Budget"}
                   </p>
                 </div>
               </div>
@@ -404,15 +431,15 @@ const Coaster = () => {
                   {formatCurrency(spendingPace.spentTotal)} / {formatCurrency(spendingPace.projectedSpend)}
                 </span>
               </div>
-              <Progress value={progressPercentage} className="h-3" />
+              <Progress value={progressPercentage} className={cn("h-3", progressBarClasses)} />
             </div>
           </CardContent>
         </Card>
       )}
 
       {coasterItems.length === 0 ? (
-        <Card className="border-2">
-          <CardContent className="py-16 text-center">
+      <Card className="border-2">
+        <CardContent className="py-16 text-center">
             <p className="text-muted-foreground mb-4">
               No expenses yet — coast smart until next payday 🪙
             </p>
@@ -420,8 +447,8 @@ const Coaster = () => {
               <Plus className="w-4 h-4 mr-2" />
               Add Your First Expense
             </Button>
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
       ) : (
         <div className="grid gap-4">
           {coasterItems.map((item) => (
@@ -431,7 +458,7 @@ const Coaster = () => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <CardTitle>{item.name}</CardTitle>
-                      <Badge variant="secondary">{item.category || "General"}</Badge>
+                      <Badge variant="secondary">{(item as any).category || "General"}</Badge>
                     </div>
                     <CardDescription>
                       {format(new Date(item.expense_date), "PPP")}
