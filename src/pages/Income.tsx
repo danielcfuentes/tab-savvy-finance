@@ -869,7 +869,30 @@ const Income = () => {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={dueDate} onSelect={setDueDate} initialFocus className="pointer-events-auto" />
+                        <div className="p-3 border-b">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start text-left font-normal"
+                            onClick={() => setDueDate(undefined)}
+                          >
+                            No Date
+                          </Button>
+                        </div>
+                        <Calendar 
+                          mode="single" 
+                          selected={dueDate} 
+                          onSelect={setDueDate} 
+                          month={thisMonth}
+                          onMonthChange={() => {}}
+                          disabled={(date) => !isSameMonth(date, thisMonth)}
+                          components={{
+                            IconLeft: () => null,
+                            IconRight: () => null,
+                            Navigation: () => null,
+                          }}
+                          className="pointer-events-auto" 
+                        />
                       </PopoverContent>
                     </Popover>
                   </div>
@@ -883,7 +906,30 @@ const Income = () => {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={dueDateNext} onSelect={setDueDateNext} initialFocus className="pointer-events-auto" />
+                        <div className="p-3 border-b">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start text-left font-normal"
+                            onClick={() => setDueDateNext(undefined)}
+                          >
+                            No Date
+                          </Button>
+                        </div>
+                        <Calendar 
+                          mode="single" 
+                          selected={dueDateNext} 
+                          onSelect={setDueDateNext} 
+                          month={nextMonth}
+                          onMonthChange={() => {}}
+                          disabled={(date) => !isSameMonth(date, nextMonth)}
+                          components={{
+                            IconLeft: () => null,
+                            IconRight: () => null,
+                            Navigation: () => null,
+                          }}
+                          className="pointer-events-auto" 
+                        />
                       </PopoverContent>
                     </Popover>
                   </div>
