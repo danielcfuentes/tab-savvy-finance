@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Calendar as CalendarIcon, X, Edit2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -433,8 +432,7 @@ const Income = () => {
             <CardDescription>Paydays highlighted</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <TooltipProvider>
-              <Calendar
+            <Calendar
                 mode="single"
                 selected={undefined}
                 month={thisMonth}
@@ -484,15 +482,15 @@ const Income = () => {
                       buttonProps.className = cn(className, `cal-${paycheckIdx}-this`);
                       
                       return (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+                        <Popover>
+                          <PopoverTrigger asChild>
                             <button {...buttonProps}>{date.getDate()}</button>
-                          </TooltipTrigger>
-                          <TooltipContent>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-2" side="top">
                             <p className="font-semibold">{paycheckInfo.name}</p>
-                            <p>${paycheckInfo.amount.toFixed(2)}</p>
-                          </TooltipContent>
-                        </Tooltip>
+                            <p className="text-sm">${paycheckInfo.amount.toFixed(2)}</p>
+                          </PopoverContent>
+                        </Popover>
                       );
                     }
                     
@@ -538,7 +536,6 @@ const Income = () => {
                 }}
                 className="pointer-events-auto"
               />
-            </TooltipProvider>
           </CardContent>
         </Card>
 
@@ -548,8 +545,7 @@ const Income = () => {
             <CardDescription>Upcoming paydays</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <TooltipProvider>
-              <Calendar
+            <Calendar
                 mode="single"
                 selected={undefined}
                 month={nextMonth}
@@ -623,15 +619,15 @@ const Income = () => {
                       buttonProps.className = cn(className, `cal-${paycheckIdx}-next`);
                       
                       return (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+                        <Popover>
+                          <PopoverTrigger asChild>
                             <button {...buttonProps}>{date.getDate()}</button>
-                          </TooltipTrigger>
-                          <TooltipContent>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-2" side="top">
                             <p className="font-semibold">{paycheckInfo.name}</p>
-                            <p>${paycheckInfo.amount.toFixed(2)}</p>
-                          </TooltipContent>
-                        </Tooltip>
+                            <p className="text-sm">${paycheckInfo.amount.toFixed(2)}</p>
+                          </PopoverContent>
+                        </Popover>
                       );
                     }
                     
@@ -677,7 +673,6 @@ const Income = () => {
                 }}
                 className="pointer-events-auto"
               />
-            </TooltipProvider>
           </CardContent>
         </Card>
       </div>
