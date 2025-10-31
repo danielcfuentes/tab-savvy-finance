@@ -11,7 +11,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Calendar as CalendarIcon, X, Edit2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { format, startOfToday, startOfDay, addMonths, isSameMonth, startOfMonth, isPast, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { IncomeItem } from "@/lib/calculations";
@@ -331,6 +330,20 @@ const Income = () => {
 
       {/* Calendars */}
       <style>{`
+        /* Hide navigation arrows and circles on income calendars */
+        .rdp .rdp-nav,
+        .rdp button.rdp-nav_button_previous,
+        .rdp button.rdp-nav_button_next,
+        .rdp button[class*="nav"],
+        .rdp .rdp-caption button,
+        .rdp button[aria-label*="previous"],
+        .rdp button[aria-label*="next"] {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+        
         /* Override Tailwind button ghost variant for payday buttons */
         .rdp button[class*="cal-"] {
           background-color: var(--payday-color) !important;
@@ -448,6 +461,9 @@ const Income = () => {
                   // Remove Tailwind today styling - we'll use CSS instead
                 }}
                 components={{
+                  IconLeft: () => null,
+                  IconRight: () => null,
+                  Navigation: () => null,
                   Day: (dayProps: any) => {
                     const { date, className, displayMonth, ...props } = dayProps;
                     const dateKey = startOfDay(date).toISOString();
@@ -558,6 +574,9 @@ const Income = () => {
                   // Remove Tailwind today styling - we'll use CSS instead
                 }}
                 components={{
+                  IconLeft: () => null,
+                  IconRight: () => null,
+                  Navigation: () => null,
                   Day: (dayProps: any) => {
                     const { date, className, displayMonth, ...props } = dayProps;
                     // Check both with and without "next-" prefix for matching
@@ -695,13 +714,6 @@ const Income = () => {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <CardTitle>{income.name}</CardTitle>
-                    {(() => {
-                    const paydayDate = toTzDate(income.due_date);
-                    const isPaydayPast = paydayDate && isPast(paydayDate) && !isToday(paydayDate);
-                    return isPaydayPast ? (
-                        <Badge variant="secondary" className="text-xs">Already received</Badge>
-                      ) : null;
-                    })()}
                   </div>
                   <CardDescription>
                     {income.bank_accounts.name} 
