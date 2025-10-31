@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Calendar as CalendarIcon, X, Edit2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +27,8 @@ type Income = {
   name: string;
   amount_now: number;
   amount_next: number;
-  due_date: string;
+  due_date: string | null;
+  due_date_next: string | null;
   bank_account_id: string;
   bank_accounts: BankAccount;
 };
@@ -37,7 +39,8 @@ const Income = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
-  const [dueDate, setDueDate] = useState<Date>();
+  const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [dueDateNext, setDueDateNext] = useState<Date | undefined>();
   const [dismissedSlots, setDismissedSlots] = useState<Set<number>>(new Set());
   const [formData, setFormData] = useState({
     name: "",
@@ -55,7 +58,7 @@ const Income = () => {
   const fetchData = async () => {
     setLoading(true);
     const [incomesRes, accountsRes] = await Promise.all([
-      supabase.from("income").select("*, bank_accounts(id, name)").order("due_date", { ascending: true }),
+      supabase.from("income").select("*, bank_accounts(id, name)").order("due_date", { ascending: true, nullsFirst: false }),
       supabase.from("bank_accounts").select("id, name"),
     ]);
 
@@ -76,10 +79,23 @@ const Income = () => {
 
   const handleAddIncome = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dueDate) {
-      toast({ variant: "destructive", title: "Error", description: "Please select a due date" });
+    // Handle empty strings and convert to 0 if needed
+    const amountNow = formData.amount_now === "" ? 0 : parseFloat(formData.amount_now) || 0;
+    const amountNext = formData.amount_next === "" ? 0 : parseFloat(formData.amount_next) || 0;
+
+    // Validate: date required only if amount > 0
+    // When amount is $0, dates are optional and can be null
+    if (amountNow > 0 && !dueDate) {
+      toast({ variant: "destructive", title: "Error", description: "Please select a date for This Month when amount is greater than $0" });
       return;
     }
+    if (amountNext > 0 && !dueDateNext) {
+      toast({ variant: "destructive", title: "Error", description: "Please select a date for Next Month when amount is greater than $0" });
+      return;
+    }
+    
+    // When amount is 0, explicitly allow null dates (dates are optional)
+    // No validation needed for $0 amounts without dates
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
@@ -90,9 +106,12 @@ const Income = () => {
         .from("income")
         .update({
           name: formData.name,
-          amount_now: parseFloat(formData.amount_now),
-          amount_next: parseFloat(formData.amount_next),
-          due_date: dueDate.toISOString(),
+          amount_now: amountNow,
+          amount_next: amountNext,
+          // Allow null dates when amount is 0 - dates only required when amount > 0
+          // Validation above ensures dates exist when amount > 0, so we can safely use null here
+          due_date: dueDate ? dueDate.toISOString() : null,
+          due_date_next: dueDateNext ? dueDateNext.toISOString() : null,
           bank_account_id: formData.bank_account_id,
         })
         .eq("id", editingIncome.id);
@@ -105,6 +124,7 @@ const Income = () => {
         setEditingIncome(null);
         setFormData({ name: "", amount_now: "", amount_next: "", bank_account_id: "" });
         setDueDate(undefined);
+        setDueDateNext(undefined);
         fetchData();
       }
     } else {
@@ -112,9 +132,11 @@ const Income = () => {
     const { error } = await supabase.from("income").insert({
       user_id: session.user.id,
       name: formData.name,
-      amount_now: parseFloat(formData.amount_now),
-      amount_next: parseFloat(formData.amount_next),
-      due_date: dueDate.toISOString(),
+        amount_now: amountNow,
+        amount_next: amountNext,
+        // Allow null dates when amount is 0 - dates only required when amount > 0
+        due_date: dueDate ? dueDate.toISOString() : null,
+        due_date_next: dueDateNext ? dueDateNext.toISOString() : null,
       bank_account_id: formData.bank_account_id,
     });
 
@@ -125,8 +147,9 @@ const Income = () => {
       setDialogOpen(false);
       setFormData({ name: "", amount_now: "", amount_next: "", bank_account_id: "" });
       setDueDate(undefined);
+        setDueDateNext(undefined);
       fetchData();
-    }
+      }
     }
   };
 
@@ -138,7 +161,8 @@ const Income = () => {
       amount_next: income.amount_next.toString(),
       bank_account_id: income.bank_account_id,
     });
-    setDueDate(new Date(income.due_date));
+    setDueDate(income.due_date ? new Date(income.due_date) : undefined);
+    setDueDateNext(income.due_date_next ? new Date(income.due_date_next) : undefined);
     setDialogOpen(true);
   };
 
@@ -161,7 +185,8 @@ const Income = () => {
   const thisMonth = startOfMonth(tzNow);
   const nextMonth = startOfMonth(addMonths(tzNow, 1));
 
-  const toTzDate = (dIso: string) => {
+  const toTzDate = (dIso: string | null) => {
+    if (!dIso) return null;
     const d = new Date(new Date(dIso).toLocaleString("en-US", { timeZone: resolvedTz }));
     d.setHours(0, 0, 0, 0);
     return d;
@@ -169,10 +194,13 @@ const Income = () => {
   
   // Separate past and future paydays for this month
   const incomesThisMonthData = incomes
-    .filter(i => isSameMonth(toTzDate(i.due_date), thisMonth))
+    .filter(i => {
+      const d = toTzDate(i.due_date);
+      return d && isSameMonth(d, thisMonth);
+    })
     .map(i => {
       const d = toTzDate(i.due_date);
-      return { date: d, income: i };
+      return { date: d!, income: i };
     });
   
   const incomesThisMonthPast = incomesThisMonthData
@@ -193,60 +221,43 @@ const Income = () => {
   
   const incomesThisMonth = incomesThisMonthData.map(item => item.date);
   
+  // Get next month paydays from both due_date_next and due_date (if in next month)
   const incomesNextMonth = incomes
-    .filter(i => isSameMonth(toTzDate(i.due_date), nextMonth))
-    .map(i => {
+    .filter(i => {
+      const dNext = toTzDate(i.due_date_next);
       const d = toTzDate(i.due_date);
-      d.setHours(0, 0, 0, 0);
-      return d;
-    });
+      return (dNext && isSameMonth(dNext, nextMonth)) || (d && isSameMonth(d, nextMonth));
+    })
+    .map(i => {
+      const dNext = toTzDate(i.due_date_next);
+      const d = toTzDate(i.due_date);
+      // Prefer due_date_next if it exists and is in next month, otherwise use due_date
+      const targetDate = (dNext && isSameMonth(dNext, nextMonth)) ? dNext : d;
+      if (targetDate) {
+        targetDate.setHours(0, 0, 0, 0);
+        return targetDate;
+      }
+      return null;
+    })
+    .filter((d): d is Date => d !== null);
 
-  // Per-paycheck color coding for This Month and Next Month
+  // Per-paycheck color coding for This Month and Next Month - more vibrant colors
   const colorPalette = [
-    "#00A86B", // Mint Ledger primary
-    "#4CD964",
-    "#1DB954",
-    "#34D399",
-    "#10B981",
-    "#2DD4BF",
+    "#00A86B", // Mint Ledger primary - keep this one
+    "#00C987", // Brighter mint green
+    "#00D9A5", // Vibrant emerald
+    "#28E8A0", // Bright teal
+    "#3DF5B8", // Light mint
+    "#16C785", // Deep mint
   ];
 
   type ModRecord = Record<string, Date[]>;
   const thisMonthModifiers: ModRecord = {};
   const nextMonthModifiers: ModRecord = {};
-  const dynamicClassNames: Record<string, string> = {};
 
-  incomes.forEach((inc, idx) => {
-    const keyThis = `pay${idx}This`;
-    const keyNext = `pay${idx}Next`;
-    const date = toTzDate(inc.due_date);
-    const normalizedDate = startOfDay(date);
-
-    // If paycheck is in this month, mark it and also project it to next month (same day)
-    if (isSameMonth(date, thisMonth)) {
-      thisMonthModifiers[keyThis] = [normalizedDate];
-      dynamicClassNames[keyThis] = `cal-${idx}-this`;
-
-      const projectedNext = startOfDay(addMonths(normalizedDate, 1));
-      if (isSameMonth(projectedNext, nextMonth)) {
-        nextMonthModifiers[keyNext] = [projectedNext];
-        dynamicClassNames[keyNext] = `cal-${idx}-next`;
-      }
-    }
-
-    // If paycheck is already dated in next month, just mark next month
-    if (isSameMonth(date, nextMonth)) {
-      nextMonthModifiers[keyNext] = [normalizedDate];
-      dynamicClassNames[keyNext] = `cal-${idx}-next`;
-    }
-  });
-
-  // Fallback: aggregate all next-month paydays to ensure visibility even if per-paycheck mapping fails
-  const nextMonthAll: Date[] = Object.values(nextMonthModifiers).flat();
-  if (nextMonthAll.length > 0) {
-    (nextMonthModifiers as any).anyNextPay = nextMonthAll;
-  }
-
+  // Build modifiers with paycheck info for tooltips
+  const paycheckInfoByDate = new Map<string, { name: string; amount: number; idx: number }>();
+  
   // Build modifiersClassNames with inline styles for colors
   const thisMonthClassNames: Record<string, string> = {
     paydaysPast: "paydays-past",
@@ -256,17 +267,40 @@ const Income = () => {
   incomes.forEach((inc, idx) => {
     const keyThis = `pay${idx}This`;
     const keyNext = `pay${idx}Next`;
-    const date = toTzDate(inc.due_date);
-    const color = colorPalette[idx % colorPalette.length];
+    const dateThis = toTzDate(inc.due_date);
+    const dateNext = toTzDate(inc.due_date_next);
     
-    if (isSameMonth(date, thisMonth)) {
+    // This Month: use due_date if it exists and is in this month
+    if (dateThis && isSameMonth(dateThis, thisMonth)) {
+      const normalizedDate = startOfDay(dateThis);
+      // Use date only (no time) for matching
+      const dateOnly = new Date(normalizedDate.getFullYear(), normalizedDate.getMonth(), normalizedDate.getDate());
+      thisMonthModifiers[keyThis] = [dateOnly];
       thisMonthClassNames[keyThis] = `cal-${idx}-this`;
+      paycheckInfoByDate.set(dateOnly.toISOString(), { name: inc.name, amount: inc.amount_now, idx });
     }
-    if (isSameMonth(date, nextMonth)) {
+    
+    // Next Month: prefer due_date_next, fallback to due_date if in next month
+    let nextDate: Date | null = null;
+    if (dateNext && isSameMonth(dateNext, nextMonth)) {
+      nextDate = startOfDay(dateNext);
+    } else if (dateThis && isSameMonth(dateThis, nextMonth)) {
+      nextDate = startOfDay(dateThis);
+    }
+    
+    if (nextDate) {
+      // Use date only (no time) for matching
+      const dateOnly = new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
+      nextMonthModifiers[keyNext] = [dateOnly];
       nextMonthClassNames[keyNext] = `cal-${idx}-next`;
+      paycheckInfoByDate.set(`next-${dateOnly.toISOString()}`, { name: inc.name, amount: inc.amount_next, idx });
     }
   });
+
+  // Fallback: aggregate all next-month paydays to ensure visibility even if per-paycheck mapping fails
+  const nextMonthAll: Date[] = Object.values(nextMonthModifiers).flat();
   if (nextMonthAll.length > 0) {
+    (nextMonthModifiers as any).anyNextPay = nextMonthAll;
     nextMonthClassNames["anyNextPay"] = "cal-any-next";
   }
 
@@ -298,27 +332,16 @@ const Income = () => {
 
       {/* Calendars */}
       <style>{`
-        /* Base: future/upcoming payday styling (actual colors added below) */
-        .rdp-day.paydays:not(.paydays-past),
-        button.rdp-day.paydays:not(.paydays-past) {
+        /* Override Tailwind button ghost variant for payday buttons */
+        .rdp button[class*="cal-"] {
+          background-color: var(--payday-color) !important;
           color: #FFFFFF !important;
           font-weight: 700 !important;
           border-radius: 0.5rem !important;
         }
-        /* Past payday styling - already received */
-        .rdp-day.paydays-past,
-        button.rdp-day.paydays-past,
-        .rdp-day_selected.paydays-past {
-          background-color: #E0E0E0 !important;
-          color: #616161 !important;
-          font-weight: 600 !important;
-          border-radius: 0.5rem !important;
-          border: 2px dashed #9E9E9E !important;
-          opacity: 0.8 !important;
-        }
-        /* Today's date - subtle blue highlight when not a payday */
-        .rdp-day_today:not(.paydays),
-        button.rdp-day_today:not(.paydays):not([class*="paydays"]) {
+        
+        /* Today's date - subtle blue highlight when not a payday - must override Tailwind */
+        .rdp button.rdp-day.rdp-day_today:not([class*="cal-"]):not([class*="paydays-past"]) {
           background-color: #E3F2FD !important;
           color: #1565C0 !important;
           font-weight: 600 !important;
@@ -326,44 +349,43 @@ const Income = () => {
           border-radius: 0.5rem !important;
           box-shadow: 0 1px 3px rgba(33, 150, 243, 0.2) !important;
         }
-        /* Today that is also a payday - combine both styles with priority to payday */
-        .rdp-day_today.paydays,
-        button.rdp-day_today.paydays {
-          background-color: #00A86B !important;
-          color: #FFFFFF !important;
-          border: 2px solid #00C580 !important;
-          box-shadow: 0 3px 6px rgba(0, 168, 107, 0.5) !important;
+        
+        /* Past payday styling - already received */
+        .rdp button.rdp-day[class*="paydays-past"] {
+          background-color: #E0E0E0 !important;
+          color: #616161 !important;
+          font-weight: 600 !important;
+          border-radius: 0.5rem !important;
+          border: 2px dashed #9E9E9E !important;
+          opacity: 0.8 !important;
         }
+        
         /* Dynamically generated per-paycheck colors (same color for this & next) */
         ${incomes
           .map((_, idx) => {
             const color = colorPalette[idx % colorPalette.length];
             return `
-              /* This Month payday colors */
-              .cal-${idx}-this,
-              .rdp-day.cal-${idx}-this,
-              button.cal-${idx}-this,
-              button.rdp-day.cal-${idx}-this,
-              [class*="cal-${idx}-this"],
-              button[class*="cal-${idx}-this"].rdp-day,
-              .rdp-day[class*="cal-${idx}-this"],
-              button.rdp-day[class*="cal-${idx}-this"] {
+              /* This Month payday colors - ultra-specific selectors to override Tailwind */
+              .rdp button.cal-${idx}-this,
+              .rdp button.rdp-day.cal-${idx}-this,
+              .rdp button[class*="cal-${idx}-this"],
+              .rdp .rdp-day.cal-${idx}-this,
+              .rdp [class*="cal-${idx}-this"] {
                 background-color: ${color} !important;
+                background: ${color} !important;
                 color: #FFFFFF !important;
                 font-weight: 700 !important;
                 border-radius: 0.5rem !important;
                 box-shadow: 0 2px 4px ${color}33 !important;
               }
               /* Next Month payday colors (slightly transparent) */
-              .cal-${idx}-next,
-              .rdp-day.cal-${idx}-next,
-              button.cal-${idx}-next,
-              button.rdp-day.cal-${idx}-next,
-              [class*="cal-${idx}-next"],
-              button[class*="cal-${idx}-next"].rdp-day,
-              .rdp-day[class*="cal-${idx}-next"],
-              button.rdp-day[class*="cal-${idx}-next"] {
+              .rdp button.cal-${idx}-next,
+              .rdp button.rdp-day.cal-${idx}-next,
+              .rdp button[class*="cal-${idx}-next"],
+              .rdp .rdp-day.cal-${idx}-next,
+              .rdp [class*="cal-${idx}-next"] {
                 background-color: ${color} !important;
+                background: ${color} !important;
                 color: #FFFFFF !important;
                 font-weight: 700 !important;
                 border-radius: 0.5rem !important;
@@ -371,12 +393,33 @@ const Income = () => {
                 outline: 2px solid rgba(0,0,0,0.05) !important;
                 box-shadow: 0 1px 2px ${color}26 !important;
               }
+              /* Today that is also a payday - override today's blue with payday color */
+              .rdp button.rdp-day_today.cal-${idx}-this,
+              .rdp button.rdp-day.rdp-day_today.cal-${idx}-this,
+              .rdp button.rdp-day.rdp-day_today[class*="cal-${idx}-this"] {
+                background-color: ${color} !important;
+                background: ${color} !important;
+                color: #FFFFFF !important;
+                border: 2px solid ${color} !important;
+                box-shadow: 0 3px 6px ${color}66 !important;
+              }
+              .rdp button.rdp-day_today.cal-${idx}-next,
+              .rdp button.rdp-day.rdp-day_today.cal-${idx}-next,
+              .rdp button.rdp-day.rdp-day_today[class*="cal-${idx}-next"] {
+                background-color: ${color} !important;
+                background: ${color} !important;
+                color: #FFFFFF !important;
+                border: 2px solid ${color} !important;
+                opacity: 0.85 !important;
+                box-shadow: 0 3px 6px ${color}66 !important;
+              }
             `;
           })
           .join("\n")}
         /* Generic next-month fallback */
-        .cal-any-next {
+        .rdp button[class*="cal-any-next"] {
           background-color: #00A86B !important;
+          background: #00A86B !important;
           color: #FFFFFF !important;
           font-weight: 700 !important;
           border-radius: 0.5rem !important;
@@ -390,23 +433,112 @@ const Income = () => {
             <CardDescription>Paydays highlighted</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Calendar
-              mode="single"
-              selected={undefined}
-              month={thisMonth}
-              onMonthChange={() => {}}
-              modifiers={{ 
-                paydaysPast: incomesThisMonthPast,
-                ...thisMonthModifiers
-              }}
-              modifiersClassNames={thisMonthClassNames}
-              classNames={{
-                cell: "h-10 w-10 p-0",
-                day: "h-10 w-10 rounded-md",
-                day_today: "bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500 text-blue-700 dark:text-blue-300"
-              }}
-              className="pointer-events-none"
-            />
+            <TooltipProvider>
+              <Calendar
+                mode="single"
+                selected={undefined}
+                month={thisMonth}
+                onMonthChange={() => {}}
+                modifiers={{ 
+                  paydaysPast: incomesThisMonthPast,
+                  ...thisMonthModifiers
+                }}
+                modifiersClassNames={thisMonthClassNames}
+                classNames={{
+                  cell: "h-10 w-10 p-0 relative",
+                  day: "h-10 w-10 p-0 m-0",
+                  // Remove Tailwind today styling - we'll use CSS instead
+                }}
+                components={{
+                  Day: (dayProps: any) => {
+                    const { date, className, displayMonth, ...props } = dayProps;
+                    const dateKey = startOfDay(date).toISOString();
+                    const paycheckInfo = paycheckInfoByDate.get(dateKey);
+                    
+                    // Filter out non-DOM props
+                    const { displayMonth: _, ...restProps } = props;
+                    const buttonProps: any = { ...restProps };
+                    
+                    // Apply color directly if this is a payday
+                    if (paycheckInfo) {
+                      const paycheckIdx = paycheckInfo.idx;
+                      const paydayColor = colorPalette[paycheckIdx % colorPalette.length];
+                      
+                      buttonProps.style = {
+                        backgroundColor: paydayColor,
+                        color: '#FFFFFF',
+                        fontWeight: '700',
+                        borderRadius: '0.25rem',
+                        width: '100%',
+                        height: '100%',
+                        minWidth: '100%',
+                        minHeight: '100%',
+                        padding: '0',
+                        margin: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: `0 2px 4px ${paydayColor}33`,
+                        ...props.style,
+                      };
+                      buttonProps.className = cn(className, `cal-${paycheckIdx}-this`);
+                      
+                      return (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button {...buttonProps}>{date.getDate()}</button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="font-semibold">{paycheckInfo.name}</p>
+                            <p>${paycheckInfo.amount.toFixed(2)}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    }
+                    
+                    // Check if it's today
+                    const isDateToday = isSameMonth(date, thisMonth) && isToday(date);
+                    if (isDateToday && !paycheckInfo) {
+                      buttonProps.style = {
+                        backgroundColor: '#E3F2FD',
+                        color: '#1565C0',
+                        fontWeight: '600',
+                        border: '2px solid #2196F3',
+                        borderRadius: '0.25rem',
+                        width: '100%',
+                        height: '100%',
+                        minWidth: '100%',
+                        minHeight: '100%',
+                        padding: '0',
+                        margin: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 1px 3px rgba(33, 150, 243, 0.2)',
+                        ...props.style,
+                      };
+                    }
+                    
+                    // Ensure all buttons have consistent styling
+                    if (!buttonProps.style) {
+                      buttonProps.style = {
+                        width: '100%',
+                        height: '100%',
+                        padding: '0',
+                        margin: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      };
+                    }
+                    
+                    buttonProps.className = cn(className, props.className);
+                    return <button {...buttonProps}>{date.getDate()}</button>;
+                  }
+                }}
+                className="pointer-events-auto"
+              />
+            </TooltipProvider>
           </CardContent>
         </Card>
 
@@ -416,20 +548,136 @@ const Income = () => {
             <CardDescription>Upcoming paydays</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Calendar
-              mode="single"
-              selected={undefined}
-              month={nextMonth}
-              onMonthChange={() => {}}
-              modifiers={{ ...nextMonthModifiers }}
-              modifiersClassNames={nextMonthClassNames}
-              classNames={{
-                cell: "h-10 w-10 p-0",
-                day: "h-10 w-10 rounded-md",
-                day_today: "bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500 text-blue-700 dark:text-blue-300"
-              }}
-              className="pointer-events-none"
-            />
+            <TooltipProvider>
+              <Calendar
+                mode="single"
+                selected={undefined}
+                month={nextMonth}
+                onMonthChange={() => {}}
+                modifiers={{ ...nextMonthModifiers }}
+                modifiersClassNames={nextMonthClassNames}
+                classNames={{
+                  cell: "h-10 w-10 p-0 relative",
+                  day: "h-10 w-10 p-0 m-0",
+                  // Remove Tailwind today styling - we'll use CSS instead
+                }}
+                components={{
+                  Day: (dayProps: any) => {
+                    const { date, className, displayMonth, ...props } = dayProps;
+                    // Check both with and without "next-" prefix for matching
+                    const dateKeyISO = startOfDay(date).toISOString();
+                    const dateKeyWithNext = `next-${dateKeyISO}`;
+                    
+                    // Try to find paycheck info - check both keys
+                    let paycheckInfo = paycheckInfoByDate.get(dateKeyWithNext);
+                    if (!paycheckInfo) {
+                      // Also check if any income has this date in next month
+                      const matchingIncome = incomes.find(inc => {
+                        const dateNext = toTzDate(inc.due_date_next);
+                        const dateThis = toTzDate(inc.due_date);
+                        const checkDate = dateNext && isSameMonth(dateNext, nextMonth) 
+                          ? dateNext 
+                          : (dateThis && isSameMonth(dateThis, nextMonth) ? dateThis : null);
+                        if (!checkDate) return false;
+                        const checkDateISO = startOfDay(checkDate).toISOString();
+                        return checkDateISO === dateKeyISO;
+                      });
+                      if (matchingIncome) {
+                        const idx = incomes.indexOf(matchingIncome);
+                        paycheckInfo = { 
+                          name: matchingIncome.name, 
+                          amount: matchingIncome.amount_next || matchingIncome.amount_now, 
+                          idx 
+                        };
+                      }
+                    }
+                    
+                    // Filter out non-DOM props
+                    const { displayMonth: _, ...restProps } = props;
+                    const buttonProps: any = { ...restProps };
+                    
+                    // Apply color directly if this is a payday
+                    if (paycheckInfo) {
+                      const paycheckIdx = paycheckInfo.idx;
+                      const paydayColor = colorPalette[paycheckIdx % colorPalette.length];
+                      
+                      buttonProps.style = {
+                        backgroundColor: paydayColor,
+                        color: '#FFFFFF',
+                        fontWeight: '700',
+                        borderRadius: '0.25rem',
+                        width: '100%',
+                        height: '100%',
+                        minWidth: '100%',
+                        minHeight: '100%',
+                        padding: '0',
+                        margin: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: 0.75,
+                        outline: '2px solid rgba(0,0,0,0.05)',
+                        boxShadow: `0 1px 2px ${paydayColor}26`,
+                        ...props.style,
+                      };
+                      buttonProps.className = cn(className, `cal-${paycheckIdx}-next`);
+                      
+                      return (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button {...buttonProps}>{date.getDate()}</button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="font-semibold">{paycheckInfo.name}</p>
+                            <p>${paycheckInfo.amount.toFixed(2)}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    }
+                    
+                    // Check if it's today in next month
+                    const isDateToday = isSameMonth(date, nextMonth) && isToday(date);
+                    if (isDateToday && !paycheckInfo) {
+                      buttonProps.style = {
+                        backgroundColor: '#E3F2FD',
+                        color: '#1565C0',
+                        fontWeight: '600',
+                        border: '2px solid #2196F3',
+                        borderRadius: '0.25rem',
+                        width: '100%',
+                        height: '100%',
+                        minWidth: '100%',
+                        minHeight: '100%',
+                        padding: '0',
+                        margin: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 1px 3px rgba(33, 150, 243, 0.2)',
+                        ...props.style,
+                      };
+                    }
+                    
+                    // Ensure all buttons have consistent styling
+                    if (!buttonProps.style) {
+                      buttonProps.style = {
+                        width: '100%',
+                        height: '100%',
+                        padding: '0',
+                        margin: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      };
+                    }
+                    
+                    buttonProps.className = cn(className, props.className);
+                    return <button {...buttonProps}>{date.getDate()}</button>;
+                  }
+                }}
+                className="pointer-events-auto"
+              />
+            </TooltipProvider>
           </CardContent>
         </Card>
       </div>
@@ -453,15 +701,17 @@ const Income = () => {
                   <div className="flex items-center gap-2">
                     <CardTitle>{income.name}</CardTitle>
                     {(() => {
-                      const paydayDate = toTzDate(income.due_date);
-                      const isPaydayPast = isPast(paydayDate) && !isToday(paydayDate);
-                      return isPaydayPast ? (
+                    const paydayDate = toTzDate(income.due_date);
+                    const isPaydayPast = paydayDate && isPast(paydayDate) && !isToday(paydayDate);
+                    return isPaydayPast ? (
                         <Badge variant="secondary" className="text-xs">Already received</Badge>
                       ) : null;
                     })()}
                   </div>
                   <CardDescription>
-                    {income.bank_accounts.name} • {format(new Date(income.due_date), "PPP")}
+                    {income.bank_accounts.name} 
+                    {income.due_date && ` • This Month: ${format(new Date(income.due_date), "MMM d")}`}
+                    {income.due_date_next && ` • Next Month: ${format(new Date(income.due_date_next), "MMM d")}`}
                   </CardDescription>
                 </div>
                 <div className="flex gap-1">
@@ -480,12 +730,12 @@ const Income = () => {
                   <p className="text-sm text-muted-foreground mb-1">This Month</p>
                   {(() => {
                     const paydayDate = toTzDate(income.due_date);
-                    const isPaydayPast = isPast(paydayDate) && !isToday(paydayDate);
+                    const isPaydayPast = paydayDate && isPast(paydayDate) && !isToday(paydayDate);
                     const displayAmount = isPaydayPast ? 0 : Number(income.amount_now);
                     return (
                       <>
                         <p className="text-2xl font-bold text-foreground">${displayAmount.toFixed(2)}</p>
-                        {isPaydayPast && (
+                        {isPaydayPast && paydayDate && (
                           <p className="text-xs text-muted-foreground mt-1">Received on {format(paydayDate, "MMM d")}</p>
                         )}
                       </>
@@ -558,15 +808,16 @@ const Income = () => {
           setEditingIncome(null);
           setFormData({ name: "", amount_now: "", amount_next: "", bank_account_id: "" });
           setDueDate(undefined);
+          setDueDateNext(undefined);
         }
       }}>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
             <DialogTitle>{editingIncome ? "Edit Paycheck" : "Add Paycheck"}</DialogTitle>
             <DialogDescription>
               {editingIncome 
                 ? "Update paycheck amounts for this month and next month"
-                : "Visualize your upcoming income"
+                : "Visualize your upcoming income. Dates are only required when amount is greater than $0."
               }
             </DialogDescription>
                 </DialogHeader>
@@ -602,16 +853,30 @@ const Income = () => {
               </div>
                   </div>
                   <div className="space-y-2">
-              <Label>Payday Date</Label>
+              <Label>This Month Payday Date {parseFloat(formData.amount_now) > 0 && <span className="text-destructive">*</span>}</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                   <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dueDate && "text-muted-foreground")}> 
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
+                          {dueDate ? format(dueDate, "PPP") : <span>Pick a date {parseFloat(formData.amount_now) > 0 ? "(required)" : "(optional)"}</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                   <Calendar mode="single" selected={dueDate} onSelect={setDueDate} initialFocus className="pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+              <Label>Next Month Payday Date {parseFloat(formData.amount_next) > 0 && <span className="text-destructive">*</span>}</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dueDateNext && "text-muted-foreground")}> 
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dueDateNext ? format(dueDateNext, "PPP") : <span>Pick a date {parseFloat(formData.amount_next) > 0 ? "(required)" : "(optional)"}</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dueDateNext} onSelect={setDueDateNext} initialFocus className="pointer-events-auto" />
                       </PopoverContent>
                     </Popover>
                   </div>
