@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { User, LogOut, Home, Lock } from "lucide-react";
+import { User, LogOut, Home, Lock, Globe } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Profile = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -18,6 +19,9 @@ const Profile = () => {
     confirmPassword: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [timezone, setTimezone] = useState<string>(
+    localStorage.getItem("userTimezone") || Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -93,6 +97,11 @@ const Profile = () => {
     setDialogOpen(false);
   };
 
+  const handleTimezoneSave = () => {
+    localStorage.setItem("userTimezone", timezone);
+    toast({ title: "Saved", description: `Timezone set to ${timezone}` });
+  };
+
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
@@ -107,7 +116,7 @@ const Profile = () => {
           <span className="text-xs leading-tight">Profile</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg w-[92vw] md:w-auto max-h-[90vh] md:max-h-[85vh] overflow-y-auto flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
@@ -118,7 +127,39 @@ const Profile = () => {
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+          <Card className="border-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Timezone
+              </CardTitle>
+              <CardDescription>Select your preferred timezone</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Label htmlFor="timezone">Timezone</Label>
+              <Select value={timezone} onValueChange={setTimezone}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select timezone" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {(Intl as any).supportedValuesOf ?
+                    (Intl as any).supportedValuesOf("timeZone").map((tz: string) => (
+                      <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                    )) : (
+                      [
+                        "UTC","America/New_York","America/Chicago","America/Denver","America/Los_Angeles",
+                        "Europe/London","Europe/Berlin","Asia/Tokyo","Asia/Hong_Kong","Australia/Sydney"
+                      ].map((tz) => (
+                        <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                      ))
+                    )
+                  }
+                </SelectContent>
+              </Select>
+              <Button onClick={handleTimezoneSave} className="w-full">Save Timezone</Button>
+            </CardContent>
+          </Card>
           <Card className="border-2">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -135,7 +176,7 @@ const Profile = () => {
                     Change Password
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-sm">
+                <DialogContent className="max-w-sm md:max-w-md w-[92vw] md:w-auto max-h-[90vh] md:max-h-[80vh] overflow-y-auto my-4 md:my-0">
                   <DialogHeader>
                     <DialogTitle>Change Password</DialogTitle>
                     <DialogDescription>Enter your new password</DialogDescription>
