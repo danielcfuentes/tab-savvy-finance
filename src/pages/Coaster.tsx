@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Calendar as CalendarIcon, Info } from "lucide-react";
-import { format, startOfToday, startOfMonth, differenceInDays, isToday, isPast, isFuture } from "date-fns";
+import { format, startOfToday, startOfDay, startOfMonth, differenceInDays, isToday, isPast, isFuture } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getRealBankBalance, getCoastingDays, getNextIncomeDue } from "@/lib/calculations";
 import type { BankAccount, CoasterItem, IncomeItem } from "@/lib/calculations";
@@ -471,12 +471,14 @@ const Coaster = () => {
               color: #ffffff !important;
               font-weight: 800 !important;
               border-radius: 0.5rem !important;
-              box-shadow: 0 4px 6px rgba(255, 158, 122, 0.4), 0 2px 4px rgba(255, 184, 154, 0.3) !important;
-              border: 2px solid #FF9E7A !important;
+              box-shadow: 0 1px 2px rgba(255, 158, 122, 0.3) !important;
+              border: 1px solid #FF9E7A !important;
               position: relative !important;
               width: 100% !important;
               height: 100% !important;
-              min-height: 3.5rem !important;
+              min-height: 2.5rem !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
             .rdp button[class*="coasting-day"]:hover,
             .rdp .rdp-day[class*="coasting-day"]:hover,
@@ -492,9 +494,11 @@ const Coaster = () => {
             .rdp button.rdp-day_today[class*="coasting-day"],
             .rdp .rdp-day.rdp-day_today[class*="coasting-day"] {
               background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-              border: 3px solid #10b981 !important;
-              box-shadow: 0 6px 12px rgba(16, 185, 129, 0.4), 0 4px 6px rgba(16, 185, 129, 0.3) !important;
+              border: 1px solid #10b981 !important;
+              box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3) !important;
               font-weight: 800 !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
             /* Next payday - same as coasting days (peach) */
             .rdp button[class*="next-payday"],
@@ -505,12 +509,14 @@ const Coaster = () => {
               color: #ffffff !important;
               font-weight: 800 !important;
               border-radius: 0.5rem !important;
-              box-shadow: 0 4px 6px rgba(255, 158, 122, 0.4), 0 2px 4px rgba(255, 184, 154, 0.3) !important;
-              border: 2px solid #FF9E7A !important;
+              box-shadow: 0 1px 2px rgba(255, 158, 122, 0.3) !important;
+              border: 1px solid #FF9E7A !important;
               position: relative !important;
               width: 100% !important;
               height: 100% !important;
-              min-height: 3.5rem !important;
+              min-height: 2.5rem !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
             .rdp button[class*="next-payday"]:hover,
             .rdp .rdp-day[class*="next-payday"]:hover,
@@ -519,9 +525,9 @@ const Coaster = () => {
               background: linear-gradient(135deg, #FF9E7A 0%, #FF8E6B 100%) !important;
               box-shadow: 0 6px 8px rgba(255, 158, 122, 0.5), 0 4px 6px rgba(255, 142, 107, 0.4) !important;
             }
-            /* Make calendar bigger and full width */
+            /* Make calendar full width */
             .rdp {
-              font-size: 1.15rem;
+              font-size: 0.875rem;
               width: 100%;
               padding: 1rem;
             }
@@ -536,7 +542,7 @@ const Coaster = () => {
               width: 100%;
               table-layout: fixed;
               border-collapse: separate;
-              border-spacing: 0.25rem;
+              border-spacing: 0;
               margin: 0 auto;
             }
             .rdp .rdp-row {
@@ -555,29 +561,107 @@ const Coaster = () => {
               width: calc(100% / 7) !important;
               max-width: calc(100% / 7) !important;
               min-width: calc(100% / 7) !important;
-              height: 4rem;
-              padding: 0.25rem;
-              vertical-align: middle;
-              text-align: center;
-              box-sizing: border-box;
+              height: 2.5rem !important;
+              padding: 0 !important;
+              vertical-align: middle !important;
+              text-align: center !important;
+              box-sizing: border-box !important;
               flex: none !important;
+              margin: 0 !important;
+              position: relative !important;
             }
-            .rdp .rdp-day {
+            
+            /* Ensure cells don't have any padding that would offset content */
+            .rdp .rdp-cell > * {
+              margin: 0 auto !important;
+            }
+            
+            /* Target disabled days specifically */
+            .rdp button.rdp-day.rdp-day_disabled,
+            .rdp button.rdp-day[disabled] {
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              text-align: center !important;
+            }
+            
+            /* Target all day buttons to ensure consistent positioning */
+            .rdp button.rdp-day {
+              transform: none !important;
+              left: 0 !important;
+              right: 0 !important;
+              margin-left: 0 !important;
+              margin-right: 0 !important;
+            }
+            
+            /* Override any default calendar library styles that might offset buttons */
+            .rdp .rdp-cell button.rdp-day {
+              position: absolute !important;
+              top: 50% !important;
+              left: 50% !important;
+              transform: translate(-50%, -50%) !important;
               width: 100% !important;
               height: 100% !important;
-              min-height: 3.5rem;
+            }
+            
+            /* But keep highlighted days as they are (they're already centered) */
+            .rdp .rdp-cell button.rdp-day[class*="coasting-day"],
+            .rdp .rdp-cell button.rdp-day[class*="next-payday"] {
+              position: relative !important;
+              top: auto !important;
+              left: auto !important;
+              transform: none !important;
+            }
+            /* Regular day buttons - ensure proper centering and make them appear "off" */
+            .rdp .rdp-day:not(.coasting-day):not(.next-payday):not([class*="coasting-day"]):not([class*="next-payday"]),
+            .rdp button.rdp-day:not(.coasting-day):not(.next-payday):not([class*="coasting-day"]):not([class*="next-payday"]) {
+              width: 100% !important;
+              height: 100% !important;
+              min-height: 2.5rem !important;
               max-width: 100% !important;
-              font-size: 1.15rem;
+              font-size: 0.875rem !important;
               font-weight: 700;
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              margin: 0 auto !important;
+              padding: 0 !important;
+              box-sizing: border-box !important;
               overflow: hidden;
               text-overflow: ellipsis;
               border-radius: 0.5rem;
+              text-align: center !important;
+              position: relative !important;
+              left: 0 !important;
+              right: 0 !important;
+              opacity: 0.4 !important;
+              color: #9ca3af !important;
+              cursor: not-allowed !important;
+            }
+            
+            /* Ensure text content is centered - target the actual number */
+            .rdp button.rdp-day:not(.coasting-day):not(.next-payday):not([class*="coasting-day"]):not([class*="next-payday"]) {
+              padding-left: 0 !important;
+              padding-right: 0 !important;
+              margin-left: 0 !important;
+              margin-right: 0 !important;
+            }
+            
+            /* Target the actual button content */
+            .rdp button.rdp-day:not(.coasting-day):not(.next-payday):not([class*="coasting-day"]):not([class*="next-payday"])::before,
+            .rdp button.rdp-day:not(.coasting-day):not(.next-payday):not([class*="coasting-day"]):not([class*="next-payday"])::after {
+              content: none !important;
+            }
+            
+            /* Ensure highlighted days have pointer cursor and are clickable */
+            .rdp button.rdp-day.coasting-day,
+            .rdp button.rdp-day.next-payday,
+            .rdp button.rdp-day[class*="coasting-day"],
+            .rdp button.rdp-day[class*="next-payday"] {
+              cursor: pointer !important;
             }
             .rdp .rdp-head_cell {
               display: table-cell !important;
@@ -586,13 +670,14 @@ const Coaster = () => {
               min-width: calc(100% / 7) !important;
               font-size: 1rem;
               font-weight: 600;
-              padding: 0.5rem 0;
-              text-align: center;
+              padding: 0.5rem 0 !important;
+              text-align: center !important;
               box-sizing: border-box;
               flex: none !important;
+              margin: 0 !important;
             }
             .rdp .rdp-caption_label {
-              font-size: 1.35rem;
+              font-size: 1rem;
               font-weight: 700;
             }
             .rdp .rdp-caption {
@@ -619,18 +704,18 @@ const Coaster = () => {
             }
             @media (min-width: 768px) {
               .rdp .rdp-cell {
-                height: 4.5rem;
-                padding: 0.375rem;
+                height: 2.5rem !important;
+                padding: 0 !important;
               }
               .rdp .rdp-day {
-                font-size: 1.25rem;
-                min-height: 4rem;
+                font-size: 0.875rem !important;
+                min-height: 2.5rem !important;
               }
               .rdp .rdp-head_cell {
-                font-size: 1.1rem;
+                font-size: 0.875rem;
               }
               .rdp .rdp-table {
-                border-spacing: 0.375rem;
+                border-spacing: 0;
                 margin-top: 1rem;
               }
               .rdp .rdp-caption {
@@ -655,21 +740,21 @@ const Coaster = () => {
             }
             @media (min-width: 1024px) {
               .rdp .rdp-cell {
-                height: 5rem;
-                padding: 0.5rem;
+                height: 2.5rem !important;
+                padding: 0 !important;
               }
               .rdp .rdp-day {
-                font-size: 1.35rem;
-                min-height: 4.5rem;
+                font-size: 0.875rem !important;
+                min-height: 2.5rem !important;
               }
               .rdp .rdp-head_cell {
-                font-size: 1.15rem;
+                font-size: 0.875rem;
               }
               .rdp .rdp-caption_label {
-                font-size: 1.5rem;
+                font-size: 1rem;
               }
               .rdp .rdp-table {
-                border-spacing: 0.5rem;
+                border-spacing: 0;
                 margin-top: 1.25rem;
               }
               .rdp .rdp-caption {
@@ -738,8 +823,8 @@ const Coaster = () => {
               },
             }}
             classNames={{
-              cell: "text-center text-base p-0 relative",
-              day: "p-0 font-normal text-base",
+              cell: "h-10 w-10 p-0 relative",
+              day: "h-10 w-10 p-0 m-0",
               months: "w-full",
               month: "w-full",
               table: "w-full",
@@ -753,6 +838,25 @@ const Coaster = () => {
               const maxDate = nextIncome || new Date();
               if (nextIncome) {
                 maxDate.setHours(0, 0, 0, 0);
+                // Only disable if it's NOT a coasting day
+                const dateOnly = startOfDay(date);
+                const coastingDaysArray = (() => {
+                  const days: Date[] = [];
+                  const todayDate = startOfToday();
+                  const endDate = new Date(nextIncome);
+                  todayDate.setHours(0, 0, 0, 0);
+                  endDate.setHours(0, 0, 0, 0);
+                  for (let d = new Date(todayDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                    days.push(new Date(d));
+                  }
+                  return days;
+                })();
+                const isCoastingDay = coastingDaysArray.some(d => {
+                  const dOnly = startOfDay(d);
+                  return dOnly.getTime() === dateOnly.getTime();
+                });
+                // Don't disable coasting days
+                if (isCoastingDay) return false;
                 return date < today || date > maxDate;
               }
               maxDate.setDate(maxDate.getDate() + 30);
