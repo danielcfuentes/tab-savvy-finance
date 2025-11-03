@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -48,10 +48,103 @@ const Income = () => {
   });
   const navigate = useNavigate();
   const { toast } = useToast();
+  const hasCheckedUpdatesRef = useRef(false);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Automatically update paycheck dates when month transitions
+  useEffect(() => {
+    if (incomes.length === 0 || loading) return;
+    // Prevent infinite loops by only checking once per data load
+    if (hasCheckedUpdatesRef.current) return;
+    hasCheckedUpdatesRef.current = true;
+
+    const updatePaycheckDates = async () => {
+      const resolvedTz = localStorage.getItem("userTimezone") || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const nowInTz = () => new Date(new Date().toLocaleString("en-US", { timeZone: resolvedTz }));
+      const tzNow = nowInTz();
+      const thisMonth = startOfMonth(tzNow);
+      const today = startOfToday();
+
+      const toTzDate = (dIso: string | null) => {
+        if (!dIso) return null;
+        const d = new Date(new Date(dIso).toLocaleString("en-US", { timeZone: resolvedTz }));
+        d.setHours(0, 0, 0, 0);
+        return d;
+      };
+
+      const updates: Array<{ id: string; due_date: string | null; due_date_next: string | null; amount_now: number; amount_next: number }> = [];
+
+      for (const income of incomes) {
+        const dateThis = toTzDate(income.due_date);
+        const dateNext = toTzDate(income.due_date_next);
+        let needsUpdate = false;
+        let newDueDate: Date | null = dateThis;
+        let newDueDateNext: Date | null = dateNext;
+        let newAmountNow = income.amount_now;
+        let newAmountNext = income.amount_next;
+
+        // If due_date_next is now in "this month", move it to due_date and clear next month
+        if (dateNext && isSameMonth(dateNext, thisMonth)) {
+          newDueDate = dateNext;
+          newAmountNow = income.amount_next;
+          // Clear next month - don't assume there will be a paycheck next month
+          newDueDateNext = null;
+          newAmountNext = 0;
+          needsUpdate = true;
+        }
+        // If due_date is in the past and we have a valid due_date_next, move it forward
+        else if (dateThis && dateThis < today && dateNext && dateNext >= today) {
+          // If due_date_next is now in this month, move it to due_date
+          if (isSameMonth(dateNext, thisMonth)) {
+            newDueDate = dateNext;
+            newAmountNow = income.amount_next;
+            // Clear next month - don't assume there will be a paycheck next month
+            newDueDateNext = null;
+            newAmountNext = 0;
+            needsUpdate = true;
+          }
+        }
+
+        if (needsUpdate) {
+          updates.push({
+            id: income.id,
+            due_date: newDueDate ? newDueDate.toISOString() : null,
+            due_date_next: newDueDateNext ? newDueDateNext.toISOString() : null,
+            amount_now: newAmountNow,
+            amount_next: newAmountNext,
+          });
+        }
+      }
+
+      // Batch update all paychecks that need updating
+      if (updates.length > 0) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        // Update each paycheck
+        for (const update of updates) {
+          await supabase
+            .from("income")
+            .update({
+              due_date: update.due_date,
+              due_date_next: update.due_date_next,
+              amount_now: update.amount_now,
+              amount_next: update.amount_next,
+            })
+            .eq("id", update.id);
+        }
+
+        // Refresh data after updates
+        fetchData();
+      }
+    };
+
+    updatePaycheckDates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomes.length, loading]); // Only run when incomes are loaded
 
   const fetchData = async () => {
     setLoading(true);
@@ -64,6 +157,8 @@ const Income = () => {
       toast({ variant: "destructive", title: "Error", description: "Failed to fetch income data" });
     } else {
       setIncomes(incomesRes.data || []);
+      // Reset the update check flag when data is refreshed
+      hasCheckedUpdatesRef.current = false;
     }
 
     if (accountsRes.error) {
@@ -191,14 +286,19 @@ const Income = () => {
   };
   
   // Separate past and future paydays for this month
+  // Include both due_date and due_date_next if they're in this month
   const incomesThisMonthData = incomes
     .filter(i => {
       const d = toTzDate(i.due_date);
-      return d && isSameMonth(d, thisMonth);
+      const dNext = toTzDate(i.due_date_next);
+      return (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
     })
     .map(i => {
       const d = toTzDate(i.due_date);
-      return { date: d!, income: i };
+      const dNext = toTzDate(i.due_date_next);
+      // Prefer due_date if it's in this month, otherwise use due_date_next
+      const targetDate = (d && isSameMonth(d, thisMonth)) ? d : dNext;
+      return { date: targetDate!, income: i };
     });
   
   const incomesThisMonthPast = incomesThisMonthData
@@ -269,13 +369,26 @@ const Income = () => {
     const dateNext = toTzDate(inc.due_date_next);
     
     // This Month: use due_date if it exists and is in this month
+    // Also check due_date_next if it's now in this month (month transition)
+    let thisMonthDate: Date | null = null;
+    let thisMonthAmount = inc.amount_now;
+    
     if (dateThis && isSameMonth(dateThis, thisMonth)) {
-      const normalizedDate = startOfDay(dateThis);
+      thisMonthDate = dateThis;
+      thisMonthAmount = inc.amount_now;
+    } else if (dateNext && isSameMonth(dateNext, thisMonth)) {
+      // due_date_next is now in this month (month transition)
+      thisMonthDate = dateNext;
+      thisMonthAmount = inc.amount_next;
+    }
+    
+    if (thisMonthDate) {
+      const normalizedDate = startOfDay(thisMonthDate);
       // Use date only (no time) for matching
       const dateOnly = new Date(normalizedDate.getFullYear(), normalizedDate.getMonth(), normalizedDate.getDate());
       thisMonthModifiers[keyThis] = [dateOnly];
       thisMonthClassNames[keyThis] = `cal-${idx}-this`;
-      paycheckInfoByDate.set(dateOnly.toISOString(), { name: inc.name, amount: inc.amount_now, idx });
+      paycheckInfoByDate.set(dateOnly.toISOString(), { name: inc.name, amount: thisMonthAmount, idx });
     }
     
     // Next Month: prefer due_date_next, fallback to due_date if in next month
