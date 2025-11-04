@@ -566,7 +566,6 @@ const Coaster = () => {
           </div>
           <CardDescription className="text-base md:text-lg text-muted-foreground">
             <span className="font-semibold text-foreground">{coastingDays} day{coastingDays !== 1 ? 's' : ''}</span> until next paycheck
-            <span className="block mt-2 text-sm">💡 Click on any day to add an expense</span>
             {!nextIncome && (
               <span className="block mt-2 text-sm text-amber-600 dark:text-amber-400">
                 No upcoming paycheck found. Add income dates in the Income Tab.
@@ -1205,6 +1204,19 @@ const Coaster = () => {
               return isToday(itemDate);
             });
             
+            // Check if any dates are future
+            const hasFutureDates = expenseGroup.some(item => {
+              const itemDate = new Date(item.expense_date);
+              itemDate.setHours(0, 0, 0, 0);
+              return isFuture(itemDate);
+            });
+            
+            // For recurring expenses: only gray out if ALL dates have passed (no future dates)
+            // For one-time expenses: gray out if the date has passed
+            const shouldGrayOut = isRecurring 
+              ? !hasFutureDates && !hasTodayDate  // All dates are past (no future, no today)
+              : hasPastDates;  // Single date is past
+            
             // Format dates for display
             const formatDates = () => {
               if (!isRecurring) {
@@ -1266,14 +1278,14 @@ const Coaster = () => {
                 key={groupIdx}
                 className={cn(
                   "border-2 hover:shadow-card-hover transition-smooth",
-                  hasPastDates && "opacity-60"
+                  shouldGrayOut && "opacity-60"
                 )}
               >
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <CardTitle className={cn(hasPastDates && "text-muted-foreground")}>
+                        <CardTitle className={cn(shouldGrayOut && "text-muted-foreground")}>
                           {firstExpense.name}
                         </CardTitle>
                         {hasTodayDate && (
@@ -1285,7 +1297,7 @@ const Coaster = () => {
                           {isRecurring ? "Repeats" : "One-Time Expense"}
                         </Badge>
                       </div>
-                      <CardDescription className={cn(hasPastDates && "text-muted-foreground")}>
+                      <CardDescription className={cn(shouldGrayOut && "text-muted-foreground")}>
                         {isRecurring ? `Repeats on ${formatDates()}` : formatDates()}
                         {firstExpense.bank_account_id && bankAccounts.find(acc => acc.id === firstExpense.bank_account_id) && (
                           ` • ${bankAccounts.find(acc => acc.id === firstExpense.bank_account_id)?.name}`
@@ -1295,7 +1307,7 @@ const Coaster = () => {
                     <div className="flex items-center gap-3">
                       <p className={cn(
                         "text-xl font-bold",
-                        hasPastDates ? "text-muted-foreground" : "text-foreground"
+                        shouldGrayOut ? "text-muted-foreground" : "text-foreground"
                       )}>
                         ${formatCurrency(Number(firstExpense.amount))}
                         {isRecurring && ` × ${expenseGroup.length}`}
