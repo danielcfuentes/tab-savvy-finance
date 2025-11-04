@@ -67,16 +67,21 @@ export function getNextIncomeDue(incomes: IncomeItem[]): Date | null {
 }
 
 /**
- * Calculate coasting days between now and next income (excluding payday)
+ * Calculate coasting days between now and next income (excluding payday, including today)
  * Payday is considered part of the new pay cycle, so it's excluded
+ * Today is included in the count
+ * Example: If today is Nov 1 and payday is Nov 7, returns 6 (Nov 1-6, excluding Nov 7)
  */
 export function getCoastingDays(
   nextIncome: Date | null,
   today: Date = startOfToday()
 ): number {
   if (!nextIncome) return 0;
-  // Exclude payday from coasting days (payday is part of new pay cycle)
-  return Math.max(0, differenceInDays(nextIncome, today) - 1);
+  // differenceInDays gives the number of full days between two dates
+  // differenceInDays(Nov 7, Nov 1) = 6 means Nov 7 is 6 full days after Nov 1
+  // This represents days: Nov 1, 2, 3, 4, 5, 6 (6 days, excluding Nov 7)
+  // So differenceInDays already excludes payday and includes today - perfect!
+  return Math.max(0, differenceInDays(nextIncome, today));
 }
 
 /**
