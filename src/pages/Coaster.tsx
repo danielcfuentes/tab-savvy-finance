@@ -1129,11 +1129,25 @@ const Coaster = () => {
         <div className="grid gap-4">
           {groupExpenses().map((expenseGroup, groupIdx) => {
             const firstExpense = expenseGroup[0];
-            const isRecurring = expenseGroup.length > 1;
             const today = startOfToday();
             
-            // Get all dates and sort them
-            const dates = expenseGroup.map(item => new Date(item.expense_date));
+            // Filter out past dates - only show today and future dates
+            const remainingItems = expenseGroup.filter(item => {
+              const itemDate = new Date(item.expense_date);
+              itemDate.setHours(0, 0, 0, 0);
+              return !isPast(itemDate) || isToday(itemDate);
+            });
+            
+            // Skip if no remaining items (all dates have passed)
+            if (remainingItems.length === 0) {
+              return null;
+            }
+            
+            const isRecurring = expenseGroup.length > 1;
+            const hasRemainingRecurring = remainingItems.length > 1;
+            
+            // Get all dates from remaining items and sort them
+            const dates = remainingItems.map(item => new Date(item.expense_date));
             
             // Find the earliest and latest dates
             const earliestDate = dates.reduce((earliest, date) => 
@@ -1143,22 +1157,22 @@ const Coaster = () => {
               date > latest ? date : latest, dates[0]
             );
             
-            // Check if any dates are past
-            const hasPastDates = expenseGroup.some(item => {
+            // Check if any dates are past (this should be false now, but keeping for consistency)
+            const hasPastDates = remainingItems.some(item => {
               const itemDate = new Date(item.expense_date);
               itemDate.setHours(0, 0, 0, 0);
               return isPast(itemDate) && !isToday(itemDate);
             });
             
             // Check if any dates are today
-            const hasTodayDate = expenseGroup.some(item => {
+            const hasTodayDate = remainingItems.some(item => {
               const itemDate = new Date(item.expense_date);
               itemDate.setHours(0, 0, 0, 0);
               return isToday(itemDate);
             });
             
             // Check if any dates are future
-            const hasFutureDates = expenseGroup.some(item => {
+            const hasFutureDates = remainingItems.some(item => {
               const itemDate = new Date(item.expense_date);
               itemDate.setHours(0, 0, 0, 0);
               return isFuture(itemDate);
@@ -1170,16 +1184,16 @@ const Coaster = () => {
               ? !hasFutureDates && !hasTodayDate  // All dates are past (no future, no today)
               : hasPastDates;  // Single date is past
             
-            // Format dates for display
+            // Format dates for display (only showing remaining dates)
             const formatDates = () => {
               if (!isRecurring) {
-                const itemDate = new Date(firstExpense.expense_date);
+                const itemDate = new Date(remainingItems[0].expense_date);
                 itemDate.setHours(0, 0, 0, 0);
                 const isPastDate = isPast(itemDate) && !isToday(itemDate);
                 return format(itemDate, isPastDate ? "MMM d" : "PPP");
               }
               
-              // For recurring expenses, show compact format
+              // For recurring expenses, show compact format with only remaining dates
               const sortedDates = [...dates].sort((a, b) => a.getTime() - b.getTime());
               
               // Try to group consecutive dates
@@ -1263,7 +1277,7 @@ const Coaster = () => {
                         shouldGrayOut ? "text-muted-foreground" : "text-foreground"
                       )}>
                         ${formatCurrency(Number(firstExpense.amount))}
-                        {isRecurring && ` × ${expenseGroup.length}`}
+                        {isRecurring && ` × ${remainingItems.length}`}
                       </p>
                       <div className="flex gap-1">
                         <Button
