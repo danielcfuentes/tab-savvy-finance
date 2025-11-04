@@ -1,19 +1,46 @@
 import { Link, useLocation } from "react-router-dom";
-import { Wallet, TrendingUp, Beer, FileText, CheckCircle, LifeBuoy } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Wallet, TrendingUp, Beer, FileText, CheckCircle, LifeBuoy, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import Profile from "./Profile";
 
 const AppNav = () => {
   const location = useLocation();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUserEmail(session?.user?.email || null);
+    };
+
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUserEmail(session?.user?.email || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const navItems = [
     { name: "Bank", path: "/dashboard", icon: Wallet },
     { name: "Income", path: "/income", icon: TrendingUp },
     { name: "Coaster", path: "/coaster", icon: Beer },
+    { name: "Real Bank", path: "/realbank", icon: DollarSign, restricted: true },
     { name: "Bills", path: "/bills", icon: FileText },
     { name: "Close Out", path: "/closeout", icon: CheckCircle },
     { name: "Survivor", path: "/survivor", icon: LifeBuoy },
   ];
+
+  // Filter nav items based on user email
+  const filteredNavItems = navItems.filter(item => {
+    if (item.restricted && userEmail !== "dani@gmail.com") {
+      return false;
+    }
+    return true;
+  });
 
   const handleProfileClick = () => {
     // This will be handled by the Profile component's dialog
@@ -29,7 +56,7 @@ const AppNav = () => {
         </div>
         
         <div className="flex-1 space-y-2">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             return (
@@ -52,7 +79,7 @@ const AppNav = () => {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 shadow-card">
         <div className="max-w-screen-sm mx-auto w-full px-2">
           <div className="grid grid-cols-7 gap-1 py-1">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             return (

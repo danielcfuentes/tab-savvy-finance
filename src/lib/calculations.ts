@@ -4,6 +4,7 @@ export type BankAccount = {
   id: string;
   name: string;
   balance: number;
+  account_type?: string;
 };
 
 export type IncomeItem = {
@@ -77,20 +78,39 @@ export function getCoastingDays(
 }
 
 /**
- * Calculate real bank balance: sum of bank balances minus ALL coaster expenses
+ * Calculate real bank balance: sum of bank balances minus credit balances minus ALL coaster expenses
+ * Bank accounts (checking, savings, digital_wallet) are added
+ * Credit accounts (credit_card, loan) are subtracted
+ * Then all coaster expenses are subtracted
  * This represents actual spending power - all expenses (past, present, and future) are subtracted
  */
 export function getRealBankBalance(
   bankAccounts: BankAccount[],
   coasterItems: CoasterItem[]
 ): number {
-  const totalBalance = bankAccounts.reduce((sum, account) => sum + Number(account.balance), 0);
+  // Separate bank accounts and credit accounts
+  const bankAccountsList = bankAccounts.filter(acc => {
+    const accountType = acc.account_type?.toLowerCase() || '';
+    return ['checking', 'savings', 'digital_wallet'].includes(accountType);
+  });
+  
+  const creditAccounts = bankAccounts.filter(acc => {
+    const accountType = acc.account_type?.toLowerCase() || '';
+    return ['credit_card', 'loan'].includes(accountType);
+  });
+  
+  // Sum bank account balances (positive)
+  const totalBankBalance = bankAccountsList.reduce((sum, account) => sum + Number(account.balance), 0);
+  
+  // Sum credit account balances (these are debts, so subtract them)
+  const totalCreditBalance = creditAccounts.reduce((sum, account) => sum + Number(account.balance), 0);
   
   // Subtract ALL coasting expenses (not just through today)
   // This shows actual available cash after accounting for all scheduled expenses
   const totalExpenses = coasterItems.reduce((sum, item) => sum + Number(item.amount), 0);
   
-  return totalBalance - totalExpenses;
+  // Real balance = Bank accounts - Credit accounts - Expenses
+  return totalBankBalance - totalCreditBalance - totalExpenses;
 }
 
 /**

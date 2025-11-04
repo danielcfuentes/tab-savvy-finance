@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Edit2, Calendar as CalendarIcon, Info } from "lucide-react";
 import { format, startOfToday, startOfDay, startOfMonth, differenceInDays, isToday, isPast, isFuture } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getRealBankBalance, getCoastingDays, getNextIncomeDue } from "@/lib/calculations";
+import { getCoastingDays, getNextIncomeDue } from "@/lib/calculations";
 import type { BankAccount, CoasterItem, IncomeItem } from "@/lib/calculations";
 
 const Coaster = () => {
@@ -309,7 +309,6 @@ const Coaster = () => {
     }
   };
 
-  const realBalance = getRealBankBalance(bankAccounts, coasterItems);
   const nextIncome = getNextIncomeDue(incomes);
   const coastingDays = getCoastingDays(nextIncome);
 
@@ -1110,53 +1109,7 @@ const Coaster = () => {
         </CardContent>
       </Card>
 
-      {/* Real Bank Balance - Below Calendar */}
-      <Card className={cn(
-        "border-2",
-        realBalance >= 0 ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" 
-        : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
-      )}>
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <CardTitle className={cn(
-              "text-lg md:text-xl",
-              realBalance >= 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"
-            )}>
-              💰 Real Bank Balance
-            </CardTitle>
-            <Popover>
-              <PopoverTrigger asChild>
-                <button type="button" className="touch-manipulation">
-                  <Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="max-w-[300px] text-sm" align="start">
-                <p className="font-semibold mb-2">Real Bank Balance</p>
-                <p>
-                  Real Bank Balance is your actual spending power — what's left in your accounts after subtracting your active Coasting Expenses.
-                </p>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Calculation: (Total Bank Accounts from Bank Tab) – (All Coasting Expenses)
-                </p>
-              </PopoverContent>
-            </Popover>
-          </div>
-          <CardDescription>
-            Your actual spending power for the remaining days
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className={cn(
-            "text-xl md:text-3xl font-bold break-words",
-            realBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-          )}>
-            ${formatCurrency(Math.abs(realBalance))}
-            {realBalance < 0 && " ⚠️"}
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Add Your First Expense - Below Real Bank Balance */}
+      {/* Add Your First Expense - Below Calendar */}
       {coasterItems.length === 0 ? (
         <Card className="border-2">
           <CardContent className="py-16 text-center">
