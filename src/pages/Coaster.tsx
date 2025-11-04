@@ -11,7 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Calendar as CalendarIcon, Info } from "lucide-react";
+import { Loader2, Plus, Trash2, Edit2, Calendar as CalendarIcon, Info } from "lucide-react";
 import { format, startOfToday, startOfDay, startOfMonth, differenceInDays, isToday, isPast, isFuture } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getRealBankBalance, getCoastingDays, getNextIncomeDue } from "@/lib/calculations";
@@ -23,6 +23,7 @@ const Coaster = () => {
   const [incomes, setIncomes] = useState<IncomeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<CoasterItem | null>(null);
   const [expenseDate, setExpenseDate] = useState<Date>(new Date());
   const [calendarMonth, setCalendarMonth] = useState<Date>(startOfMonth(startOfToday()));
   const lastCheckedDateRef = useRef<string>(startOfToday().toDateString());
@@ -113,6 +114,12 @@ const Coaster = () => {
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // If editing, use update handler instead
+    if (editingExpense) {
+      await handleUpdateExpense(e);
+      return;
+    }
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
@@ -225,6 +232,83 @@ const Coaster = () => {
     }
   };
 
+  const handleDeleteExpenseGroup = async (expenseGroup: CoasterItem[]) => {
+    const ids = expenseGroup.map(expense => expense.id);
+    const { error } = await supabase.from("coaster_items").delete().in("id", ids);
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete expenses",
+      });
+    } else {
+      toast({
+        title: "Deleted",
+        description: `${expenseGroup.length} expense${expenseGroup.length > 1 ? 's' : ''} removed`,
+      });
+      fetchData();
+    }
+  };
+
+  const handleEditExpense = (expense: CoasterItem) => {
+    setEditingExpense(expense);
+    setFormData({
+      name: expense.name,
+      amount: expense.amount.toString(),
+      bank_account_id: expense.bank_account_id || "",
+      category: (expense as any).category || "General",
+      repeatDaily: false, // For editing, we'll edit one at a time
+    });
+    setExpenseDate(new Date(expense.expense_date));
+    setDialogOpen(true);
+  };
+
+  const handleUpdateExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!editingExpense) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    try {
+      const basePayload: any = {
+        name: formData.name,
+        amount: parseFloat(formData.amount),
+        expense_date: expenseDate.toISOString(),
+      };
+
+      const withOptional: any = { ...basePayload };
+      if (formData.bank_account_id) withOptional.bank_account_id = formData.bank_account_id;
+      if (formData.category) withOptional.category = formData.category;
+
+      const { error } = await supabase
+        .from("coaster_items")
+        .update(withOptional)
+        .eq("id", editingExpense.id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Updated!",
+        description: "Expense updated successfully",
+      });
+      setDialogOpen(false);
+      setEditingExpense(null);
+      setFormData({ name: "", amount: "", bank_account_id: "", category: "General", repeatDaily: false });
+      fetchData();
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err?.message || "Failed to update expense",
+      });
+    }
+  };
+
   const realBalance = getRealBankBalance(bankAccounts, coasterItems);
   const nextIncome = getNextIncomeDue(incomes);
   const coastingDays = getCoastingDays(nextIncome);
@@ -234,6 +318,29 @@ const Coaster = () => {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount);
+  };
+
+  // Group expenses by name, amount, category, and bank_account_id
+  const groupExpenses = () => {
+    const grouped = new Map<string, CoasterItem[]>();
+    
+    coasterItems.forEach(item => {
+      const key = `${item.name}|${item.amount}|${(item as any).category || "General"}|${item.bank_account_id || ""}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key)!.push(item);
+    });
+
+    return Array.from(grouped.values()).map(group => {
+      // Sort by date
+      group.sort((a, b) => {
+        const dateA = new Date(a.expense_date).getTime();
+        const dateB = new Date(b.expense_date).getTime();
+        return dateA - dateB;
+      });
+      return group;
+    });
   };
 
   const categories = ["General", "Food", "Transport", "Entertainment", "Shopping", "Bills", "Other"];
@@ -257,6 +364,7 @@ const Coaster = () => {
           setDialogOpen(open);
           if (!open) {
             // Reset form when dialog closes
+            setEditingExpense(null);
             setFormData({ name: "", amount: "", bank_account_id: "", category: "General", repeatDaily: false });
             setExpenseDate(new Date());
           }
@@ -269,8 +377,8 @@ const Coaster = () => {
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Add Expense</DialogTitle>
-              <DialogDescription>Track your daily spending</DialogDescription>
+              <DialogTitle>{editingExpense ? "Edit Expense" : "Add Expense"}</DialogTitle>
+              <DialogDescription>{editingExpense ? "Update your expense details" : "Track your daily spending"}</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleAddExpense} className="space-y-4">
               <div className="space-y-2">
@@ -398,7 +506,7 @@ const Coaster = () => {
                   </SelectContent>
                 </Select>
               </div>
-              {nextIncome && coastingDays > 0 && (
+              {nextIncome && coastingDays > 0 && !editingExpense && (
                 <div className="flex items-start space-x-3 rounded-md border p-4 bg-secondary/50">
                   <Checkbox
                     id="repeatDaily"
@@ -426,7 +534,7 @@ const Coaster = () => {
                 </div>
               )}
               <Button type="submit" className="w-full" variant="secondary">
-                {formData.repeatDaily && nextIncome ? `Add ${coastingDays} Expenses 🍺` : "Add Expense 🍺"}
+                {editingExpense ? "Update Expense" : (formData.repeatDaily && nextIncome ? `Add ${coastingDays} Expenses 🍺` : "Add Expense 🍺")}
               </Button>
             </form>
           </DialogContent>
@@ -1067,63 +1175,148 @@ const Coaster = () => {
       {/* Expense List */}
       {coasterItems.length > 0 && (
         <div className="grid gap-4">
-          {coasterItems.map((item) => {
-            const itemDate = new Date(item.expense_date);
-            itemDate.setHours(0, 0, 0, 0);
+          {groupExpenses().map((expenseGroup, groupIdx) => {
+            const firstExpense = expenseGroup[0];
+            const isRecurring = expenseGroup.length > 1;
             const today = startOfToday();
-            const isPastDate = isPast(itemDate) && !isToday(itemDate);
-            const isTodayDate = isToday(itemDate);
-            const isFutureDate = isFuture(itemDate);
-            const daysUntil = differenceInDays(itemDate, today);
+            
+            // Get all dates and sort them
+            const dates = expenseGroup.map(item => new Date(item.expense_date));
+            
+            // Find the earliest and latest dates
+            const earliestDate = dates.reduce((earliest, date) => 
+              date < earliest ? date : earliest, dates[0]
+            );
+            const latestDate = dates.reduce((latest, date) => 
+              date > latest ? date : latest, dates[0]
+            );
+            
+            // Check if any dates are past
+            const hasPastDates = expenseGroup.some(item => {
+              const itemDate = new Date(item.expense_date);
+              itemDate.setHours(0, 0, 0, 0);
+              return isPast(itemDate) && !isToday(itemDate);
+            });
+            
+            // Check if any dates are today
+            const hasTodayDate = expenseGroup.some(item => {
+              const itemDate = new Date(item.expense_date);
+              itemDate.setHours(0, 0, 0, 0);
+              return isToday(itemDate);
+            });
+            
+            // Format dates for display
+            const formatDates = () => {
+              if (!isRecurring) {
+                const itemDate = new Date(firstExpense.expense_date);
+                itemDate.setHours(0, 0, 0, 0);
+                const isPastDate = isPast(itemDate) && !isToday(itemDate);
+                return format(itemDate, isPastDate ? "MMM d" : "PPP");
+              }
+              
+              // For recurring expenses, show compact format
+              const sortedDates = [...dates].sort((a, b) => a.getTime() - b.getTime());
+              
+              // Try to group consecutive dates
+              const dateGroups: { start: Date; end: Date; count: number }[] = [];
+              let currentGroup: { start: Date; end: Date; count: number } | null = null;
+              
+              sortedDates.forEach((date, idx) => {
+                const dateOnly = startOfDay(date);
+                const prevDate = idx > 0 ? startOfDay(sortedDates[idx - 1]) : null;
+                
+                if (prevDate && dateOnly.getTime() === prevDate.getTime() + 86400000) {
+                  // Consecutive date (exactly one day after previous)
+                  if (currentGroup) {
+                    currentGroup.end = dateOnly;
+                    currentGroup.count++;
+                  }
+                } else {
+                  // New group
+                  if (currentGroup) {
+                    dateGroups.push(currentGroup);
+                  }
+                  currentGroup = { start: dateOnly, end: dateOnly, count: 1 };
+                }
+              });
+              
+              if (currentGroup) {
+                dateGroups.push(currentGroup);
+              }
+              
+              // Format groups
+              const formattedParts = dateGroups.map(group => {
+                if (group.count === 1) {
+                  return format(group.start, "MMM d");
+                } else {
+                  return `${format(group.start, "MMM d")}-${format(group.end, "d")}`;
+                }
+              });
+              
+              // Limit to first 10 dates and add "..." if more
+              if (formattedParts.length > 10) {
+                return formattedParts.slice(0, 10).join(", ") + ", ...";
+              }
+              
+              return formattedParts.join(", ");
+            };
             
             return (
               <Card 
-                key={item.id} 
+                key={groupIdx}
                 className={cn(
                   "border-2 hover:shadow-card-hover transition-smooth",
-                  isPastDate && "opacity-60"
+                  hasPastDates && "opacity-60"
                 )}
               >
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <CardTitle className={cn(isPastDate && "line-through text-muted-foreground")}>
-                          {item.name}
+                        <CardTitle className={cn(hasPastDates && "text-muted-foreground")}>
+                          {firstExpense.name}
                         </CardTitle>
-                        <Badge variant="secondary">{(item as any).category || "General"}</Badge>
-                        {isTodayDate && (
+                        <Badge variant="secondary">{(firstExpense as any).category || "General"}</Badge>
+                        {hasTodayDate && (
                           <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">
                             Today
                           </Badge>
                         )}
-                        {isFutureDate && daysUntil > 0 && (
-                          <Badge variant="outline" className="border-blue-300 text-blue-700 dark:text-blue-300">
-                            {daysUntil} day{daysUntil !== 1 ? 's' : ''} away
-                          </Badge>
-                        )}
+                        <Badge variant="outline" className="border-blue-300 text-blue-700 dark:text-blue-300">
+                          {isRecurring ? "Repeats" : "One-Time Expense"}
+                        </Badge>
                       </div>
-                      <CardDescription className={cn(isPastDate && "line-through")}>
-                        {format(new Date(item.expense_date), "PPP")}
-                        {item.bank_account_id && bankAccounts.find(acc => acc.id === item.bank_account_id) && (
-                          ` • ${bankAccounts.find(acc => acc.id === item.bank_account_id)?.name}`
+                      <CardDescription className={cn(hasPastDates && "text-muted-foreground")}>
+                        {isRecurring ? `Repeats on ${formatDates()}` : formatDates()}
+                        {firstExpense.bank_account_id && bankAccounts.find(acc => acc.id === firstExpense.bank_account_id) && (
+                          ` • ${bankAccounts.find(acc => acc.id === firstExpense.bank_account_id)?.name}`
                         )}
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-3">
                       <p className={cn(
                         "text-xl font-bold",
-                        isPastDate ? "text-muted-foreground line-through" : "text-foreground"
+                        hasPastDates ? "text-muted-foreground" : "text-foreground"
                       )}>
-                        ${formatCurrency(Number(item.amount))}
+                        ${formatCurrency(Number(firstExpense.amount))}
+                        {isRecurring && ` × ${expenseGroup.length}`}
                       </p>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteExpense(item.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditExpense(firstExpense)}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteExpenseGroup(expenseGroup)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
