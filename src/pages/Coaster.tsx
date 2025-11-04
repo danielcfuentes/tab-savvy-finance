@@ -253,12 +253,23 @@ const Coaster = () => {
 
   const handleEditExpense = (expense: CoasterItem) => {
     setEditingExpense(expense);
+    
+    // Check if this expense is part of a recurring group
+    const matchingExpenses = coasterItems.filter(item => 
+      item.name === expense.name &&
+      item.amount === expense.amount &&
+      (item as any).category === ((expense as any).category || "General") &&
+      item.bank_account_id === expense.bank_account_id
+    );
+    
+    const isRecurring = matchingExpenses.length > 1;
+    
     setFormData({
       name: expense.name,
       amount: expense.amount.toString(),
       bank_account_id: expense.bank_account_id || "",
       category: (expense as any).category || "General",
-      repeatDaily: false, // For editing, we'll edit one at a time
+      repeatDaily: isRecurring, // Set to true if it's part of a recurring group
     });
     setExpenseDate(new Date(expense.expense_date));
     setDialogOpen(true);
@@ -273,29 +284,129 @@ const Coaster = () => {
     if (!session) return;
 
     try {
-      const basePayload: any = {
-        name: formData.name,
-        amount: parseFloat(formData.amount),
-        expense_date: expenseDate.toISOString(),
-      };
+      // Find all expenses in the same group (for recurring expenses)
+      const matchingExpenses = coasterItems.filter(item => 
+        item.name === editingExpense.name &&
+        item.amount === editingExpense.amount &&
+        (item as any).category === ((editingExpense as any).category || "General") &&
+        item.bank_account_id === editingExpense.bank_account_id
+      );
 
-      const withOptional: any = { ...basePayload };
-      if (formData.bank_account_id) withOptional.bank_account_id = formData.bank_account_id;
-      if (formData.category) withOptional.category = formData.category;
+      const wasRecurring = matchingExpenses.length > 1;
+      const isNowRecurring = formData.repeatDaily;
 
-      const { error } = await supabase
-        .from("coaster_items")
-        .update(withOptional)
-        .eq("id", editingExpense.id);
+      // If changing from recurring to one-time
+      if (wasRecurring && !isNowRecurring) {
+        // Delete all expenses in the group
+        const ids = matchingExpenses.map(exp => exp.id);
+        await supabase.from("coaster_items").delete().in("id", ids);
 
-      if (error) {
-        throw error;
+        // Create a single expense with the updated data
+        const basePayload: any = {
+          name: formData.name,
+          amount: parseFloat(formData.amount),
+          expense_date: expenseDate.toISOString(),
+        };
+
+        const withOptional: any = { ...basePayload };
+        if (formData.bank_account_id) withOptional.bank_account_id = formData.bank_account_id;
+        if (formData.category) withOptional.category = formData.category;
+
+        await supabase.from("coaster_items").insert({
+          ...withOptional,
+          user_id: session.user.id,
+        });
+
+        toast({
+          title: "Updated!",
+          description: "Converted to one-time expense",
+        });
+      }
+      // If changing from one-time to recurring
+      else if (!wasRecurring && isNowRecurring && nextIncome) {
+        // Delete the single expense
+        await supabase.from("coaster_items").delete().eq("id", editingExpense.id);
+
+        // Create recurring expenses for remaining days
+        const today = startOfToday();
+        const endDate = new Date(nextIncome);
+        today.setHours(0, 0, 0, 0);
+        endDate.setHours(0, 0, 0, 0);
+
+        const expensesToCreate = [];
+        for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
+          const expenseDate = new Date(d);
+          expenseDate.setHours(0, 0, 0, 0);
+
+          const basePayload: any = {
+            user_id: session.user.id,
+            name: formData.name,
+            amount: parseFloat(formData.amount),
+            expense_date: expenseDate.toISOString(),
+          };
+
+          const withOptional: any = { ...basePayload };
+          if (formData.bank_account_id) withOptional.bank_account_id = formData.bank_account_id;
+          if (formData.category) withOptional.category = formData.category;
+
+          expensesToCreate.push(withOptional);
+        }
+
+        await supabase.from("coaster_items").insert(expensesToCreate);
+
+        toast({
+          title: "Updated!",
+          description: `Converted to recurring expense for ${expensesToCreate.length} days`,
+        });
+      }
+      // If staying as recurring (just updating the group)
+      else if (wasRecurring && isNowRecurring) {
+        // Update all expenses in the group
+        const ids = matchingExpenses.map(exp => exp.id);
+        
+        const basePayload: any = {
+          name: formData.name,
+          amount: parseFloat(formData.amount),
+        };
+
+        const withOptional: any = { ...basePayload };
+        if (formData.bank_account_id) withOptional.bank_account_id = formData.bank_account_id;
+        if (formData.category) withOptional.category = formData.category;
+
+        // Update all expenses in the group
+        await supabase
+          .from("coaster_items")
+          .update(withOptional)
+          .in("id", ids);
+
+        toast({
+          title: "Updated!",
+          description: "Recurring expense updated",
+        });
+      }
+      // If staying as one-time (just updating the single expense)
+      else {
+        const basePayload: any = {
+          name: formData.name,
+          amount: parseFloat(formData.amount),
+          expense_date: expenseDate.toISOString(),
+        };
+
+        const withOptional: any = { ...basePayload };
+        if (formData.bank_account_id) withOptional.bank_account_id = formData.bank_account_id;
+        if (formData.category) withOptional.category = formData.category;
+
+        await supabase
+          .from("coaster_items")
+          .update(withOptional)
+          .eq("id", editingExpense.id);
+
+        toast({
+          title: "Updated!",
+          description: "Expense updated successfully",
+        });
       }
 
-      toast({
-        title: "Updated!",
-        description: "Expense updated successfully",
-      });
       setDialogOpen(false);
       setEditingExpense(null);
       setFormData({ name: "", amount: "", bank_account_id: "", category: "General", repeatDaily: false });
@@ -505,7 +616,7 @@ const Coaster = () => {
                   </SelectContent>
                 </Select>
               </div>
-              {nextIncome && coastingDays > 0 && !editingExpense && (
+              {nextIncome && coastingDays > 0 && (
                 <div className="flex items-start space-x-3 rounded-md border p-4 bg-secondary/50">
                   <Checkbox
                     id="repeatDaily"
@@ -522,7 +633,12 @@ const Coaster = () => {
                       Repeat every day until next paycheck
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Create this expense for all {coastingDays} days in the coasting period
+                      {editingExpense 
+                        ? (formData.repeatDaily 
+                          ? `This expense will repeat for all ${coastingDays} remaining days. Uncheck to convert to a one-time expense.` 
+                          : "Check to convert this to a recurring expense for all remaining days.")
+                        : `Create this expense for all ${coastingDays} days in the coasting period`
+                      }
                       {formData.repeatDaily && (
                         <span className="block mt-1 font-semibold text-foreground">
                           ${formatCurrency(parseFloat(formData.amount) || 0)} × {coastingDays} days = ${formatCurrency((parseFloat(formData.amount) || 0) * coastingDays)}
@@ -544,19 +660,19 @@ const Coaster = () => {
       <Card className="border-2">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-2xl md:text-3xl">📅 Coasting Calendar</CardTitle>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button type="button" className="touch-manipulation">
-                    <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="max-w-[260px] text-sm" align="start">
-                  Coasting Days = number of days from today until your next
-                  income date. Use this window to pace daily spending.
-                </PopoverContent>
-              </Popover>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-2xl md:text-3xl">📅 Coasting Calendar</CardTitle>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button type="button" className="touch-manipulation">
+                  <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="max-w-[260px] text-sm" align="start">
+                Coasting Days = number of days from today until your next
+                income date. Use this window to pace daily spending.
+              </PopoverContent>
+            </Popover>
             </div>
             <div className="text-right">
               <p className="text-sm text-muted-foreground">Today</p>
@@ -1133,8 +1249,8 @@ const Coaster = () => {
             
             // Filter out past dates - only show today and future dates
             const remainingItems = expenseGroup.filter(item => {
-              const itemDate = new Date(item.expense_date);
-              itemDate.setHours(0, 0, 0, 0);
+            const itemDate = new Date(item.expense_date);
+            itemDate.setHours(0, 0, 0, 0);
               return !isPast(itemDate) || isToday(itemDate);
             });
             
@@ -1189,7 +1305,7 @@ const Coaster = () => {
               if (!isRecurring) {
                 const itemDate = new Date(remainingItems[0].expense_date);
                 itemDate.setHours(0, 0, 0, 0);
-                const isPastDate = isPast(itemDate) && !isToday(itemDate);
+            const isPastDate = isPast(itemDate) && !isToday(itemDate);
                 return format(itemDate, isPastDate ? "MMM d" : "PPP");
               }
               
@@ -1260,9 +1376,9 @@ const Coaster = () => {
                             Today
                           </Badge>
                         )}
-                        <Badge variant="outline" className="border-blue-300 text-blue-700 dark:text-blue-300">
+                          <Badge variant="outline" className="border-blue-300 text-blue-700 dark:text-blue-300">
                           {isRecurring ? "Repeats" : "One-Time Expense"}
-                        </Badge>
+                          </Badge>
                       </div>
                       <CardDescription className={cn(shouldGrayOut && "text-muted-foreground")}>
                         {isRecurring ? `Repeats on ${formatDates()}` : formatDates()}
@@ -1280,9 +1396,9 @@ const Coaster = () => {
                         {isRecurring && ` × ${remainingItems.length}`}
                       </p>
                       <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
+                      <Button
+                        variant="ghost"
+                        size="icon"
                           onClick={() => handleEditExpense(firstExpense)}
                         >
                           <Edit2 className="w-4 h-4" />
@@ -1291,9 +1407,9 @@ const Coaster = () => {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteExpenseGroup(expenseGroup)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                       </div>
                     </div>
                   </div>
