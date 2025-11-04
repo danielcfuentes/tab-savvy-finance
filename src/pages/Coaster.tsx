@@ -128,14 +128,14 @@ const Coaster = () => {
       const today = startOfToday();
       const nextIncomeDate = getNextIncomeDue(incomes);
       
-      // If repeatDaily is checked, create expenses for every day in the coasting period
+      // If repeatDaily is checked, create expenses for every day in the coasting period (excluding payday)
       if (formData.repeatDaily && nextIncomeDate) {
         const expensesToCreate: any[] = [];
         const endDate = new Date(nextIncomeDate);
         endDate.setHours(0, 0, 0, 0);
         
-        // Create an expense for each day from today to next paycheck
-        for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
+        // Create an expense for each day from today to day before next paycheck (exclude payday)
+        for (let d = new Date(today); d < endDate; d.setDate(d.getDate() + 1)) {
           const dayDate = new Date(d);
           dayDate.setHours(0, 0, 0, 0);
           
@@ -327,14 +327,15 @@ const Coaster = () => {
         // Delete the single expense
         await supabase.from("coaster_items").delete().eq("id", editingExpense.id);
 
-        // Create recurring expenses for remaining days
+        // Create recurring expenses for remaining days (excluding payday)
         const today = startOfToday();
         const endDate = new Date(nextIncome);
         today.setHours(0, 0, 0, 0);
         endDate.setHours(0, 0, 0, 0);
 
         const expensesToCreate = [];
-        for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
+        // Exclude payday - create expenses from today to day before payday
+        for (let d = new Date(today); d < endDate; d.setDate(d.getDate() + 1)) {
           const expenseDate = new Date(d);
           expenseDate.setHours(0, 0, 0, 0);
 
@@ -543,7 +544,8 @@ const Coaster = () => {
                             today.setHours(0, 0, 0, 0);
                             endDate.setHours(0, 0, 0, 0);
                             
-                            for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
+                            // Exclude payday - only include days from today to day before payday
+                            for (let d = new Date(today); d < endDate; d.setDate(d.getDate() + 1)) {
                               days.push(new Date(d));
                             }
                             return days;
@@ -560,6 +562,10 @@ const Coaster = () => {
                           const maxDate = nextIncome || new Date();
                           if (nextIncome) {
                             maxDate.setHours(0, 0, 0, 0);
+                            // Disable payday (it's part of new pay cycle, not coasting period)
+                            const isPayday = date.getTime() === maxDate.getTime();
+                            if (isPayday) return true;
+                            // Disable dates before today or after payday
                             return date < today || date > maxDate;
                           }
                           maxDate.setDate(maxDate.getDate() + 30);
@@ -680,7 +686,7 @@ const Coaster = () => {
             </div>
           </div>
           <CardDescription className="text-base md:text-lg text-muted-foreground">
-            <span className="font-semibold text-foreground">{coastingDays} day{coastingDays !== 1 ? 's' : ''}</span> until next paycheck
+            <span className="font-semibold text-foreground">{coastingDays} day{coastingDays !== 1 ? 's' : ''}</span> until next paycheck (payday excluded)
             {!nextIncome && (
               <span className="block mt-2 text-sm text-amber-600 dark:text-amber-400">
                 No upcoming paycheck found. Add income dates in the Income Tab.
@@ -728,17 +734,17 @@ const Coaster = () => {
               margin: 0 !important;
               padding: 0 !important;
             }
-            /* Next payday - same as coasting days (peach) */
+            /* Next payday - subtle double border to indicate it's payday (not part of coasting period) */
             .rdp button[class*="next-payday"],
             .rdp .rdp-day[class*="next-payday"],
             .rdp button.next-payday,
             .rdp .rdp-day.next-payday {
-              background: linear-gradient(135deg, #FFB89A 0%, #FF9E7A 100%) !important;
-              color: #ffffff !important;
-              font-weight: 800 !important;
+              background: #f3f4f6 !important;
+              color: #374151 !important;
+              font-weight: 700 !important;
               border-radius: 0.5rem !important;
-              box-shadow: 0 1px 2px rgba(255, 158, 122, 0.3) !important;
-              border: 1px solid #FF9E7A !important;
+              box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+              border: 2px double #6b7280 !important;
               position: relative !important;
               width: 100% !important;
               height: 100% !important;
@@ -750,8 +756,23 @@ const Coaster = () => {
             .rdp .rdp-day[class*="next-payday"]:hover,
             .rdp button.next-payday:hover,
             .rdp .rdp-day.next-payday:hover {
-              background: linear-gradient(135deg, #FF9E7A 0%, #FF8E6B 100%) !important;
-              box-shadow: 0 6px 8px rgba(255, 158, 122, 0.5), 0 4px 6px rgba(255, 142, 107, 0.4) !important;
+              background: #e5e7eb !important;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+            }
+            /* Dark mode styles for payday */
+            .dark .rdp button[class*="next-payday"],
+            .dark .rdp .rdp-day[class*="next-payday"],
+            .dark .rdp button.next-payday,
+            .dark .rdp .rdp-day.next-payday {
+              background: #1f2937 !important;
+              color: #d1d5db !important;
+              border: 2px double #9ca3af !important;
+            }
+            .dark .rdp button[class*="next-payday"]:hover,
+            .dark .rdp .rdp-day[class*="next-payday"]:hover,
+            .dark .rdp button.next-payday:hover,
+            .dark .rdp .rdp-day.next-payday:hover {
+              background: #374151 !important;
             }
             /* Make calendar full width */
             .rdp {
@@ -1026,8 +1047,8 @@ const Coaster = () => {
                 today.setHours(0, 0, 0, 0);
                 endDate.setHours(0, 0, 0, 0);
                 
-                // Create array of all days from today through next paycheck
-                for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
+                // Create array of all days from today to day before payday (exclude payday)
+                for (let d = new Date(today); d < endDate; d.setDate(d.getDate() + 1)) {
                   days.push(new Date(d));
                 }
                 return days;
@@ -1045,9 +1066,10 @@ const Coaster = () => {
                 fontWeight: 800,
               },
               nextPayday: {
-                backgroundColor: '#FFB89A',
-                color: '#ffffff',
-                fontWeight: 800,
+                backgroundColor: '#f3f4f6',
+                color: '#374151',
+                fontWeight: 700,
+                border: '2px double #6b7280',
               },
             }}
             classNames={{
@@ -1064,14 +1086,15 @@ const Coaster = () => {
                 const { date, className, displayMonth, modifiers, ...props } = dayProps;
                 const dateOnly = startOfDay(date);
                 
-                // Check if this date is a coasting day
+                // Check if this date is a coasting day (exclude payday)
                 const coastingDaysArray = nextIncome ? (() => {
                   const days: Date[] = [];
                   const todayDate = startOfToday();
                   const endDate = new Date(nextIncome);
                   todayDate.setHours(0, 0, 0, 0);
                   endDate.setHours(0, 0, 0, 0);
-                  for (let d = new Date(todayDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                  // Exclude payday - only include days from today to day before payday
+                  for (let d = new Date(todayDate); d < endDate; d.setDate(d.getDate() + 1)) {
                     days.push(new Date(d));
                   }
                   return days;
@@ -1113,8 +1136,8 @@ const Coaster = () => {
                 
                 buttonProps.className = cn(className, props.className);
                 
-                // If it's a coasting day or next payday, show popover with expenses
-                if (isCoastingDay || isNextPayday) {
+                // If it's a coasting day, show popover with expenses
+                if (isCoastingDay) {
                   // Apply the peach gradient styling
                   buttonProps.style = {
                     background: 'linear-gradient(135deg, #FFB89A 0%, #FF9E7A 100%)',
@@ -1135,8 +1158,47 @@ const Coaster = () => {
                     cursor: 'pointer',
                     ...props.style,
                   };
-                  buttonProps.className = cn(className, isCoastingDay ? 'coasting-day' : 'next-payday', props.className);
+                  buttonProps.className = cn(className, 'coasting-day', props.className);
+                }
+                // If it's payday, show with double border (subtle indicator) - show popover with "Payday" text
+                else if (isNextPayday) {
+                  buttonProps.style = {
+                    background: '#f3f4f6',
+                    color: '#374151',
+                    fontWeight: '700',
+                    borderRadius: '0.5rem',
+                    border: '2px double #6b7280',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                    width: '100%',
+                    height: '100%',
+                    minWidth: '100%',
+                    minHeight: '100%',
+                    padding: '0',
+                    margin: '0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    ...props.style,
+                  };
+                  buttonProps.className = cn(className, 'next-payday', props.className);
                   
+                  // Show popover with "Payday" text (regardless of expenses)
+                  return (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button {...buttonProps}>{date.getDate()}</button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-3" side="top">
+                        <p className="font-semibold mb-2">{format(date, "EEEE, MMMM d")} - Payday</p>
+                        <p className="text-sm text-muted-foreground">Payday - new pay cycle starts here</p>
+                      </PopoverContent>
+                    </Popover>
+                  );
+                }
+                
+                // Show popover for coasting days only (payday is handled above)
+                if (isCoastingDay) {
                   return (
                     <Popover>
                       <PopoverTrigger asChild>
@@ -1192,11 +1254,11 @@ const Coaster = () => {
             disabled={(date) => {
               const today = startOfToday();
               date.setHours(0, 0, 0, 0);
-              // Allow dates from today up to next payday (or 30 days if no income set)
               const maxDate = nextIncome || new Date();
               if (nextIncome) {
                 maxDate.setHours(0, 0, 0, 0);
-                // Only disable if it's NOT a coasting day
+                // Don't disable payday - allow clicking it but it will show "Payday" popover
+                // Only disable if it's NOT a coasting day (coasting days exclude payday)
                 const dateOnly = startOfDay(date);
                 const coastingDaysArray = (() => {
                   const days: Date[] = [];
@@ -1204,7 +1266,8 @@ const Coaster = () => {
                   const endDate = new Date(nextIncome);
                   todayDate.setHours(0, 0, 0, 0);
                   endDate.setHours(0, 0, 0, 0);
-                  for (let d = new Date(todayDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                  // Exclude payday - only include days from today to day before payday
+                  for (let d = new Date(todayDate); d < endDate; d.setDate(d.getDate() + 1)) {
                     days.push(new Date(d));
                   }
                   return days;
@@ -1213,6 +1276,9 @@ const Coaster = () => {
                   const dOnly = startOfDay(d);
                   return dOnly.getTime() === dateOnly.getTime();
                 });
+                // Allow payday to be clickable
+                const isPayday = date.getTime() === maxDate.getTime();
+                if (isPayday) return false;
                 // Don't disable coasting days
                 if (isCoastingDay) return false;
                 return date < today || date > maxDate;

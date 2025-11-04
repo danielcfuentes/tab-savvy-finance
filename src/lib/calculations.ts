@@ -67,14 +67,16 @@ export function getNextIncomeDue(incomes: IncomeItem[]): Date | null {
 }
 
 /**
- * Calculate coasting days between now and next income
+ * Calculate coasting days between now and next income (excluding payday)
+ * Payday is considered part of the new pay cycle, so it's excluded
  */
 export function getCoastingDays(
   nextIncome: Date | null,
   today: Date = startOfToday()
 ): number {
   if (!nextIncome) return 0;
-  return Math.max(0, differenceInDays(nextIncome, today));
+  // Exclude payday from coasting days (payday is part of new pay cycle)
+  return Math.max(0, differenceInDays(nextIncome, today) - 1);
 }
 
 /**
