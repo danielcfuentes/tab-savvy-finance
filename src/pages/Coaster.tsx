@@ -436,19 +436,25 @@ const Coaster = () => {
       {/* Coasting Calendar - Main Feature */}
       <Card className="border-2">
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-2xl md:text-3xl">📅 Coasting Calendar</CardTitle>
-            <Popover>
-              <PopoverTrigger asChild>
-                <button type="button" className="touch-manipulation">
-                  <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="max-w-[260px] text-sm" align="start">
-                Coasting Days = number of days from today until your next
-                income date. Use this window to pace daily spending.
-              </PopoverContent>
-            </Popover>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-2xl md:text-3xl">📅 Coasting Calendar</CardTitle>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className="touch-manipulation">
+                    <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="max-w-[260px] text-sm" align="start">
+                  Coasting Days = number of days from today until your next
+                  income date. Use this window to pace daily spending.
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Today</p>
+              <p className="text-base font-semibold">{format(startOfToday(), "EEEE, MMM d")}</p>
+            </div>
           </div>
           <CardDescription className="text-base md:text-lg text-muted-foreground">
             <span className="font-semibold text-foreground">{coastingDays} day{coastingDays !== 1 ? 's' : ''}</span> until next paycheck
