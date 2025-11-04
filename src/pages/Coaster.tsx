@@ -837,6 +837,136 @@ const Coaster = () => {
               row: "w-full",
               head_row: "w-full",
             }}
+            components={{
+              Day: (dayProps: any) => {
+                const { date, className, displayMonth, modifiers, ...props } = dayProps;
+                const dateOnly = startOfDay(date);
+                
+                // Check if this date is a coasting day
+                const coastingDaysArray = nextIncome ? (() => {
+                  const days: Date[] = [];
+                  const todayDate = startOfToday();
+                  const endDate = new Date(nextIncome);
+                  todayDate.setHours(0, 0, 0, 0);
+                  endDate.setHours(0, 0, 0, 0);
+                  for (let d = new Date(todayDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                    days.push(new Date(d));
+                  }
+                  return days;
+                })() : [];
+                
+                const isCoastingDay = coastingDaysArray.some(d => {
+                  const dOnly = startOfDay(d);
+                  return dOnly.getTime() === dateOnly.getTime();
+                });
+                
+                // Check if this date is the next payday
+                const isNextPayday = nextIncome && dateOnly.getTime() === startOfDay(nextIncome).getTime();
+                
+                // Get expenses for this date
+                const dateExpenses = coasterItems.filter(item => {
+                  const itemDate = startOfDay(new Date(item.expense_date));
+                  return itemDate.getTime() === dateOnly.getTime();
+                });
+                
+                const totalExpenses = dateExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
+                
+                // Filter out non-DOM props
+                const { displayMonth: _, ...restProps } = props;
+                const buttonProps: any = { ...restProps };
+                
+                // Apply centering styles
+                buttonProps.style = {
+                  width: '100%',
+                  height: '100%',
+                  minWidth: '100%',
+                  minHeight: '100%',
+                  padding: '0',
+                  margin: '0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  ...props.style,
+                };
+                
+                buttonProps.className = cn(className, props.className);
+                
+                // If it's a coasting day or next payday, show popover with expenses
+                if (isCoastingDay || isNextPayday) {
+                  // Apply the peach gradient styling
+                  buttonProps.style = {
+                    background: 'linear-gradient(135deg, #FFB89A 0%, #FF9E7A 100%)',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    borderRadius: '0.5rem',
+                    border: '1px solid #FF9E7A',
+                    boxShadow: '0 1px 2px rgba(255, 158, 122, 0.3)',
+                    width: '100%',
+                    height: '100%',
+                    minWidth: '100%',
+                    minHeight: '100%',
+                    padding: '0',
+                    margin: '0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    ...props.style,
+                  };
+                  buttonProps.className = cn(className, isCoastingDay ? 'coasting-day' : 'next-payday', props.className);
+                  
+                  return (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button {...buttonProps}>{date.getDate()}</button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-3" side="top">
+                        <p className="font-semibold mb-2">{format(date, "EEEE, MMMM d")}</p>
+                        {dateExpenses.length > 0 ? (
+                          <>
+                            <div className="space-y-1">
+                              {dateExpenses.map((expense, idx) => (
+                                <div key={idx} className="flex justify-between items-center gap-4">
+                                  <span className="text-sm">{expense.name}</span>
+                                  <span className="text-sm font-semibold">${Number(expense.amount).toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-2 pt-2 border-t">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm font-semibold">Total</span>
+                                <span className="text-sm font-bold">${totalExpenses.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No expenses on this day</p>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  );
+                }
+                
+                // Regular day - make it appear "off" (grayed out)
+                buttonProps.style = {
+                  width: '100%',
+                  height: '100%',
+                  minWidth: '100%',
+                  minHeight: '100%',
+                  padding: '0',
+                  margin: '0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: 0.4,
+                  color: '#9ca3af',
+                  cursor: 'not-allowed',
+                  ...props.style,
+                };
+                
+                return <button {...buttonProps}>{date.getDate()}</button>;
+              },
+            }}
             disabled={(date) => {
               const today = startOfToday();
               date.setHours(0, 0, 0, 0);
@@ -867,12 +997,6 @@ const Coaster = () => {
               }
               maxDate.setDate(maxDate.getDate() + 30);
               return date < today || date > maxDate;
-            }}
-            onSelect={(date) => {
-              if (date && (!nextIncome || date <= nextIncome)) {
-                setExpenseDate(date);
-                setDialogOpen(true);
-              }
             }}
             className="cursor-pointer w-full"
           />
