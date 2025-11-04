@@ -358,7 +358,7 @@ const Coaster = () => {
       <div className="flex justify-between items-center flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Coaster Tab 🍻</h1>
-          <p className="text-muted-foreground">Track your daily spending</p>
+          <p className="text-muted-foreground">Keep a list of planned expenses.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
@@ -378,7 +378,7 @@ const Coaster = () => {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{editingExpense ? "Edit Expense" : "Add Expense"}</DialogTitle>
-              <DialogDescription>{editingExpense ? "Update your expense details" : "Track your daily spending"}</DialogDescription>
+              <DialogDescription>{editingExpense ? "Update your expense details" : "Keep a list of planned expenses."}</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleAddExpense} className="space-y-4">
               <div className="space-y-2">
@@ -1276,7 +1276,6 @@ const Coaster = () => {
                         <CardTitle className={cn(hasPastDates && "text-muted-foreground")}>
                           {firstExpense.name}
                         </CardTitle>
-                        <Badge variant="secondary">{(firstExpense as any).category || "General"}</Badge>
                         {hasTodayDate && (
                           <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">
                             Today
