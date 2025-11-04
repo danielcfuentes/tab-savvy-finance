@@ -580,7 +580,7 @@ const Coaster = () => {
                 <div className="space-y-2">
                   <Label>Expense Date</Label>
                   <Input
-                    value={`Every day from today until ${format(nextIncome, "PPP")} (${coastingDays} days)`}
+                    value={`Every day starting today until ${format(nextIncome, "PPP")} (${coastingDays} days, payday excluded)`}
                     disabled
                     className="bg-muted"
                   />
@@ -643,7 +643,7 @@ const Coaster = () => {
                         ? (formData.repeatDaily 
                           ? `This expense will repeat for all ${coastingDays} remaining days. Uncheck to convert to a one-time expense.` 
                           : "Check to convert this to a recurring expense for all remaining days.")
-                        : `Create this expense for all ${coastingDays} days in the coasting period`
+                        : `Create this expense for all ${coastingDays} days starting today (including today, payday excluded)`
                       }
                       {formData.repeatDaily && (
                         <span className="block mt-1 font-semibold text-foreground">
