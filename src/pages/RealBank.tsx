@@ -1,52 +1,39 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Info } from "lucide-react";
+import { Loader2, Wallet, CreditCard, TrendingDown, TrendingUp, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getRealBankBalance } from "@/lib/calculations";
-import type { BankAccount, CoasterItem } from "@/lib/calculations";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-type BankAccountWithType = BankAccount & {
+type BankAccountWithType = {
+  id: string;
+  name: string;
+  balance: number;
   account_type: string;
+};
+
+type CoasterItem = {
+  id: string;
+  name: string;
+  amount: number;
+  expense_date: string;
+  bank_account_id: string | null;
+  category: string;
 };
 
 const RealBank = () => {
   const [accounts, setAccounts] = useState<BankAccountWithType[]>([]);
   const [coasterItems, setCoasterItems] = useState<CoasterItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [checkingAuth, setCheckingAuth] = useState(true);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userEmail = session?.user?.email;
-      
-      if (userEmail !== "dani@gmail.com") {
-        toast({
-          variant: "destructive",
-          title: "Access Denied",
-          description: "This page is restricted.",
-        });
-        navigate("/dashboard");
-        return;
-      }
-      
-      setCheckingAuth(false);
-      fetchData();
-    };
-
-    checkAuth();
-  }, [navigate, toast]);
+    fetchData();
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch bank accounts
       const { data: accountsData, error: accountsError } = await supabase
         .from("bank_accounts")
         .select("*")
@@ -54,7 +41,6 @@ const RealBank = () => {
 
       if (accountsError) throw accountsError;
 
-      // Fetch coaster items
       const { data: coasterData, error: coasterError } = await supabase
         .from("coaster_items")
         .select("*")
@@ -82,10 +68,6 @@ const RealBank = () => {
     }).format(amount);
   };
 
-  const formatAccountType = (type: string) => {
-    return type.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
-  };
-
   // Separate accounts by type
   const bankAccounts = accounts.filter(acc => 
     ['checking', 'savings', 'digital_wallet'].includes(acc.account_type?.toLowerCase() || '')
@@ -94,13 +76,31 @@ const RealBank = () => {
     ['credit_card', 'loan'].includes(acc.account_type?.toLowerCase() || '')
   );
 
+  // Calculate expenses per account
+  const getExpensesByAccount = (accountId: string) => {
+    return coasterItems
+      .filter(item => item.bank_account_id === accountId)
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+  };
+
+  // Calculate unallocated expenses
+  const unallocatedExpenses = coasterItems
+    .filter(item => !item.bank_account_id)
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+
   // Calculate totals
   const totalBankBalance = bankAccounts.reduce((sum, account) => sum + Number(account.balance), 0);
-  const totalCreditBalance = creditAccounts.reduce((sum, account) => sum + Number(account.balance), 0);
-  const totalExpenses = coasterItems.reduce((sum, item) => sum + Number(item.amount), 0);
-  const realBalance = getRealBankBalance(accounts as BankAccount[], coasterItems);
+  const totalBankExpenses = bankAccounts.reduce((sum, account) => sum + getExpensesByAccount(account.id), 0) + unallocatedExpenses;
+  const totalRealBankBalance = totalBankBalance - totalBankExpenses;
 
-  if (checkingAuth || loading) {
+  const totalCreditBalance = creditAccounts.reduce((sum, account) => sum + Number(account.balance), 0);
+  const totalCreditExpenses = creditAccounts.reduce((sum, account) => sum + getExpensesByAccount(account.id), 0);
+  const totalRealCreditBalance = totalCreditBalance + totalCreditExpenses;
+
+  // Overall real balance (bank - credit)
+  const overallRealBalance = totalRealBankBalance - totalCreditBalance;
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -109,173 +109,226 @@ const RealBank = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 p-4">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Real Bank Tab 💰</h1>
         <p className="text-muted-foreground">Your actual spending power after accounting for all accounts and expenses.</p>
       </div>
 
-      {/* Real Bank Balance Summary */}
+      {/* Overall Summary */}
       <Card className={cn(
         "border-2",
-        realBalance >= 0 ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" 
-        : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+        overallRealBalance >= 0 
+          ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" 
+          : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
       )}>
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <CardTitle className={cn(
-              "text-lg md:text-xl",
-              realBalance >= 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"
-            )}>
-              💰 Real Bank Balance
-            </CardTitle>
-            <Popover>
-              <PopoverTrigger asChild>
-                <button type="button" className="touch-manipulation">
-                  <Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="max-w-[300px] text-sm" align="start">
-                <p className="font-semibold mb-2">Real Bank Balance</p>
-                <p>
-                  Real Bank Balance is your actual spending power — what's left in your accounts after subtracting credit balances and all Coasting Expenses.
-                </p>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Calculation: (Bank Accounts) - (Credit Accounts) - (All Coasting Expenses)
-                </p>
-              </PopoverContent>
-            </Popover>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Overall Real Balance</p>
+              <p className={cn(
+                "text-3xl font-bold",
+                overallRealBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+              )}>
+                ${formatCurrency(Math.abs(overallRealBalance))}
+              </p>
+            </div>
+            {overallRealBalance < 0 && (
+              <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
+            )}
           </div>
-          <CardDescription>
-            Your actual spending power
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className={cn(
-            "text-xl md:text-3xl font-bold break-words",
-            realBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-          )}>
-            ${formatCurrency(Math.abs(realBalance))}
-            {realBalance < 0 && " ⚠️"}
-          </p>
         </CardContent>
       </Card>
 
-      {/* Account Breakdown */}
-      <div className="space-y-4">
-        {/* Bank Accounts */}
-        {bankAccounts.length > 0 && (
-          <Card className="border-2">
-            <CardHeader>
-              <CardTitle className="text-lg md:text-xl">Bank Accounts</CardTitle>
-              <CardDescription>
-                Total: ${formatCurrency(totalBankBalance)}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {bankAccounts.map((account) => (
-                <div key={account.id} className="flex justify-between items-center py-2 border-b last:border-0">
-                  <div className="flex-1">
-                    <p className="font-medium">{account.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatAccountType(account.account_type)}
-                    </p>
-                  </div>
-                  <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-                    ${formatCurrency(Number(account.balance))}
-                  </p>
+      {/* Bank Accounts Section */}
+      {bankAccounts.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-green-600 dark:text-green-400" />
+            <h2 className="text-2xl font-bold">Bank Accounts</h2>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="border-2">
+              <CardContent className="p-4">
+                <p className="text-sm text-muted-foreground mb-1">Total Balance</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalBankBalance)}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-2">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingDown className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  <p className="text-sm text-muted-foreground">Coasting Expenses</p>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  {formatCurrency(totalBankExpenses)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className={cn(
+              "border-2",
+              totalRealBankBalance >= 0 
+                ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" 
+                : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+            )}>
+              <CardContent className="p-4">
+                <p className="text-sm text-muted-foreground mb-1">Real Bank Balance</p>
+                <p className={cn(
+                  "text-2xl font-bold",
+                  totalRealBankBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                )}>
+                  ${formatCurrency(Math.abs(totalRealBankBalance))}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Credit Accounts */}
-        {creditAccounts.length > 0 && (
-          <Card className="border-2">
-            <CardHeader>
-              <CardTitle className="text-lg md:text-xl">Credit Accounts</CardTitle>
-              <CardDescription>
-                Total: ${formatCurrency(totalCreditBalance)} (subtracted)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {creditAccounts.map((account) => (
-                <div key={account.id} className="flex justify-between items-center py-2 border-b last:border-0">
-                  <div className="flex-1">
-                    <p className="font-medium">{account.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatAccountType(account.account_type)}
+          {/* Individual Accounts */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {bankAccounts.map((account) => {
+              const expenses = getExpensesByAccount(account.id);
+              const realBalance = Number(account.balance) - expenses;
+              
+              return (
+                <Card key={account.id} className="border-2 hover:shadow-lg transition-shadow">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">{account.name}</CardTitle>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {account.account_type.replace('_', ' ')}
                     </p>
-                  </div>
-                  <p className="text-lg font-semibold text-red-600 dark:text-red-400">
-                    ${formatCurrency(Number(account.balance))}
-                  </p>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Bank Balance</span>
+                      <span className="text-lg font-semibold">{formatCurrency(Number(account.balance))}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Coasting Expenses</span>
+                      <span className="text-lg font-semibold text-red-600 dark:text-red-400">
+                        {expenses > 0 ? `(${formatCurrency(expenses)})` : '-'}
+                      </span>
+                    </div>
+                    <div className="pt-2 border-t">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Real Balance</span>
+                        <span className={cn(
+                          "text-xl font-bold",
+                          realBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                        )}>
+                          ${formatCurrency(Math.abs(realBalance))}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {unallocatedExpenses > 0 && (
+            <Card className="border-2 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
+              <CardContent className="p-4">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-semibold">Note:</span> ${formatCurrency(unallocatedExpenses)} in unallocated expenses included in Total
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Credit Accounts Section */}
+      {creditAccounts.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-pink-600 dark:text-pink-400" />
+            <h2 className="text-2xl font-bold">Credit Accounts</h2>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="border-2">
+              <CardContent className="p-4">
+                <p className="text-sm text-muted-foreground mb-1">Total Credit Balance</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalCreditBalance)}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-2">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <p className="text-sm text-muted-foreground">Coasting Expenses</p>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  +{formatCurrency(totalCreditExpenses)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-2 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+              <CardContent className="p-4">
+                <p className="text-sm text-muted-foreground mb-1">Real Credit Balance</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  ${formatCurrency(Math.abs(totalRealCreditBalance))}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Expenses */}
-        {coasterItems.length > 0 && (
-          <Card className="border-2">
-            <CardHeader>
-              <CardTitle className="text-lg md:text-xl">Coasting Expenses</CardTitle>
-              <CardDescription>
-                Total: ${formatCurrency(totalExpenses)} (subtracted)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {coasterItems.length} expense{coasterItems.length !== 1 ? 's' : ''} scheduled
-              </p>
-            </CardContent>
-          </Card>
-        )}
+          {/* Individual Accounts */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {creditAccounts.map((account) => {
+              const expenses = getExpensesByAccount(account.id);
+              const realBalance = Number(account.balance) + expenses;
+              
+              return (
+                <Card key={account.id} className="border-2 hover:shadow-lg transition-shadow">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">{account.name}</CardTitle>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {account.account_type.replace('_', ' ')}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Credit Balance</span>
+                      <span className="text-lg font-semibold">{formatCurrency(Number(account.balance))}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Coasting Expenses</span>
+                      <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                        {expenses > 0 ? `+${formatCurrency(expenses)}` : '-'}
+                      </span>
+                    </div>
+                    <div className="pt-2 border-t">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Real Balance</span>
+                        <span className="text-xl font-bold text-red-600 dark:text-red-400">
+                          ${formatCurrency(Math.abs(realBalance))}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-        {/* Calculation Breakdown */}
-        <Card className="border-2 bg-muted/50">
-          <CardHeader>
-            <CardTitle className="text-lg md:text-xl">Calculation</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Bank Accounts:</span>
-              <span className="font-medium text-green-600 dark:text-green-400">
-                +${formatCurrency(totalBankBalance)}
-              </span>
-            </div>
-            {creditAccounts.length > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Credit Accounts:</span>
-                <span className="font-medium text-red-600 dark:text-red-400">
-                  -${formatCurrency(totalCreditBalance)}
-                </span>
-              </div>
-            )}
-            {coasterItems.length > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Coasting Expenses:</span>
-                <span className="font-medium text-red-600 dark:text-red-400">
-                  -${formatCurrency(totalExpenses)}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between pt-2 border-t font-bold text-lg">
-              <span>Real Bank Balance:</span>
-              <span className={cn(
-                realBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-              )}>
-                ${formatCurrency(Math.abs(realBalance))}
-              </span>
-            </div>
+      {/* Empty State */}
+      {bankAccounts.length === 0 && creditAccounts.length === 0 && (
+        <Card className="border-2">
+          <CardContent className="py-16 text-center">
+            <p className="text-muted-foreground">
+              No bank accounts found. Add accounts in the Bank Tab.
+            </p>
           </CardContent>
         </Card>
-      </div>
+      )}
     </div>
   );
 };
 
 export default RealBank;
-
