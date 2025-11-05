@@ -399,14 +399,14 @@ const RealBank = () => {
             <h2 className="text-2xl md:text-3xl font-bold">My Tab</h2>
           </div>
 
-          {/* Total Tab - Full Width */}
-          <div className="w-full">
-            {renderTotalTab(true)}
-          </div>
-
           {/* Individual Bank Accounts - Responsive Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {bankAccounts.map((account) => renderAccountCard(account, true, true))}
+          </div>
+
+          {/* Total Tab - Full Width */}
+          <div className="w-full">
+            {renderTotalTab(true)}
           </div>
 
           {unallocatedExpenses > 0 && (
@@ -431,14 +431,14 @@ const RealBank = () => {
             <h2 className="text-2xl md:text-3xl font-bold">My Credit Tab</h2>
           </div>
 
-          {/* Total Tab - Full Width */}
-          <div className="w-full">
-            {renderTotalTab(false)}
-          </div>
-
           {/* Individual Credit Accounts - Responsive Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {creditAccounts.map((account) => renderAccountCard(account, false, true))}
+          </div>
+
+          {/* Total Tab - Full Width */}
+          <div className="w-full">
+            {renderTotalTab(false)}
           </div>
         </div>
       )}
