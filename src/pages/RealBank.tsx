@@ -86,7 +86,12 @@ const RealBank = () => {
     return !isPast(itemDate) || isToday(itemDate);
   };
 
-  // Calculate expenses per account (only active expenses)
+  // Get all expenses per account (for display - includes past expenses)
+  const getAllExpensesByAccount = (accountId: string) => {
+    return coasterItems.filter(item => item.bank_account_id === accountId);
+  };
+
+  // Calculate expenses per account (only active expenses - for calculations)
   const getExpensesByAccount = (accountId: string) => {
     return coasterItems.filter(item => 
       item.bank_account_id === accountId && isActiveExpense(item)
@@ -94,14 +99,15 @@ const RealBank = () => {
   };
 
   const getExpensesTotalByAccount = (accountId: string) => {
+    // Include ALL expenses (including past ones) for calculations
     return coasterItems
-      .filter(item => item.bank_account_id === accountId && isActiveExpense(item))
+      .filter(item => item.bank_account_id === accountId)
       .reduce((sum, item) => sum + Number(item.amount), 0);
   };
 
-  // Calculate unallocated expenses (only active expenses)
+  // Calculate unallocated expenses (including all expenses, even past ones)
   const unallocatedExpenses = coasterItems
-    .filter(item => !item.bank_account_id && isActiveExpense(item))
+    .filter(item => !item.bank_account_id)
     .reduce((sum, item) => sum + Number(item.amount), 0);
 
   // Calculate totals
@@ -147,7 +153,8 @@ const RealBank = () => {
     isBankAccount: boolean,
     showExpanded: boolean
   ) => {
-    const expenses = getExpensesByAccount(account.id);
+    const allExpenses = getAllExpensesByAccount(account.id); // All expenses for display
+    const expenses = getExpensesByAccount(account.id); // Active expenses for count
     const expensesTotal = getExpensesTotalByAccount(account.id);
     const realBalance = isBankAccount 
       ? Number(account.balance) - expensesTotal
@@ -219,7 +226,7 @@ const RealBank = () => {
                       }
                     </p>
                   </div>
-                  {expenses.length > 0 && (
+                  {allExpenses.length > 0 && (
                     <div className="mt-1 transition-transform duration-200 group-hover:scale-110">
                       {expensesExpanded ? (
                         <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -229,24 +236,42 @@ const RealBank = () => {
                     </div>
                   )}
                 </div>
-                {expensesExpanded && expenses.length > 0 && (
+                {expensesExpanded && allExpenses.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
-                    {expenses.map((expense) => (
-                      <div key={expense.id} className="text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="text-foreground font-medium truncate flex-1 mr-2">{expense.name}</span>
-                          <span className={cn(
-                            "font-bold whitespace-nowrap",
-                            isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
-                          )}>
-                            {formatCurrency(Number(expense.amount))}
-                          </span>
+                    {allExpenses.map((expense) => {
+                      const isPast = !isActiveExpense(expense);
+                      return (
+                        <div 
+                          key={expense.id} 
+                          className={cn(
+                            "text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800",
+                            isPast && "opacity-60"
+                          )}
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <span className={cn(
+                              "font-medium truncate flex-1 mr-2",
+                              isPast ? "text-muted-foreground" : "text-foreground"
+                            )}>
+                              {expense.name}
+                            </span>
+                            <span className={cn(
+                              "font-bold whitespace-nowrap",
+                              isPast 
+                                ? "text-muted-foreground" 
+                                : isBankAccount 
+                                  ? "text-red-600 dark:text-red-400" 
+                                  : "text-blue-600 dark:text-blue-400"
+                            )}>
+                              {formatCurrency(Number(expense.amount))}
+                            </span>
+                          </div>
+                          <div className="text-muted-foreground text-[10px]">
+                            {format(new Date(expense.expense_date), "MMM d, yyyy")}
+                          </div>
                         </div>
-                        <div className="text-muted-foreground text-[10px]">
-                          {format(new Date(expense.expense_date), "MMM d, yyyy")}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -284,14 +309,13 @@ const RealBank = () => {
       ? "bg-gradient-to-br from-green-600 to-green-700 dark:from-green-700 dark:to-green-800"
       : "bg-gradient-to-br from-pink-500 to-pink-600 dark:from-pink-600 dark:to-pink-700";
     const expensesKey = isBankAccount ? "total-bank" : "total-credit";
+    // Show all expenses (including past ones) but calculations use only active
     const filteredExpenses = isBankAccount
       ? coasterItems.filter(item => {
-          if (!isActiveExpense(item)) return false;
           if (!item.bank_account_id) return true;
           return bankAccounts.some(acc => acc.id === item.bank_account_id);
         })
       : coasterItems.filter(item => {
-          if (!isActiveExpense(item)) return false;
           if (!item.bank_account_id) return false;
           return creditAccounts.some(acc => acc.id === item.bank_account_id);
         });
@@ -345,22 +369,40 @@ const RealBank = () => {
               {expandedExpenses.has(expensesKey) && (
                 <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
                   {filteredExpenses.length > 0 ? (
-                    filteredExpenses.map((expense) => (
-                      <div key={expense.id} className="text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="text-foreground font-medium truncate flex-1 mr-2">{expense.name}</span>
-                          <span className={cn(
-                            "font-bold whitespace-nowrap",
-                            isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
-                          )}>
-                            {formatCurrency(Number(expense.amount))}
-                          </span>
+                    filteredExpenses.map((expense) => {
+                      const isPast = !isActiveExpense(expense);
+                      return (
+                        <div 
+                          key={expense.id} 
+                          className={cn(
+                            "text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800",
+                            isPast && "opacity-60"
+                          )}
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <span className={cn(
+                              "font-medium truncate flex-1 mr-2",
+                              isPast ? "text-muted-foreground" : "text-foreground"
+                            )}>
+                              {expense.name}
+                            </span>
+                            <span className={cn(
+                              "font-bold whitespace-nowrap",
+                              isPast 
+                                ? "text-muted-foreground" 
+                                : isBankAccount 
+                                  ? "text-red-600 dark:text-red-400" 
+                                  : "text-blue-600 dark:text-blue-400"
+                            )}>
+                              {formatCurrency(Number(expense.amount))}
+                            </span>
+                          </div>
+                          <div className="text-muted-foreground text-[10px]">
+                            {format(new Date(expense.expense_date), "MMM d, yyyy")}
+                          </div>
                         </div>
-                        <div className="text-muted-foreground text-[10px]">
-                          {format(new Date(expense.expense_date), "MMM d, yyyy")}
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <p className="text-xs text-muted-foreground italic">No expenses</p>
                   )}
