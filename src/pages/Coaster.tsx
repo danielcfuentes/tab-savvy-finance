@@ -1313,23 +1313,21 @@ const Coaster = () => {
             const firstExpense = expenseGroup[0];
             const today = startOfToday();
             
-            // Filter out past dates - only show today and future dates
-            const remainingItems = expenseGroup.filter(item => {
-            const itemDate = new Date(item.expense_date);
-            itemDate.setHours(0, 0, 0, 0);
+            // Don't filter out past dates - show all expenses, but we'll gray out past ones
+            const allItems = expenseGroup;
+            
+            // Get active items (today and future dates) for count display
+            const activeItems = expenseGroup.filter(item => {
+              const itemDate = new Date(item.expense_date);
+              itemDate.setHours(0, 0, 0, 0);
               return !isPast(itemDate) || isToday(itemDate);
             });
             
-            // Skip if no remaining items (all dates have passed)
-            if (remainingItems.length === 0) {
-              return null;
-            }
-            
             const isRecurring = expenseGroup.length > 1;
-            const hasRemainingRecurring = remainingItems.length > 1;
+            const hasRemainingRecurring = activeItems.length > 1;
             
-            // Get all dates from remaining items and sort them
-            const dates = remainingItems.map(item => new Date(item.expense_date));
+            // Get all dates from all items for display
+            const dates = allItems.map(item => new Date(item.expense_date));
             
             // Find the earliest and latest dates
             const earliestDate = dates.reduce((earliest, date) => 
@@ -1339,43 +1337,43 @@ const Coaster = () => {
               date > latest ? date : latest, dates[0]
             );
             
-            // Check if any dates are past (this should be false now, but keeping for consistency)
-            const hasPastDates = remainingItems.some(item => {
+            // Check if any dates are past
+            const hasPastDates = allItems.some(item => {
               const itemDate = new Date(item.expense_date);
               itemDate.setHours(0, 0, 0, 0);
               return isPast(itemDate) && !isToday(itemDate);
             });
             
             // Check if any dates are today
-            const hasTodayDate = remainingItems.some(item => {
+            const hasTodayDate = allItems.some(item => {
               const itemDate = new Date(item.expense_date);
               itemDate.setHours(0, 0, 0, 0);
               return isToday(itemDate);
             });
             
             // Check if any dates are future
-            const hasFutureDates = remainingItems.some(item => {
+            const hasFutureDates = allItems.some(item => {
               const itemDate = new Date(item.expense_date);
               itemDate.setHours(0, 0, 0, 0);
               return isFuture(itemDate);
             });
             
-            // For recurring expenses: only gray out if ALL dates have passed (no future dates)
+            // For recurring expenses: only gray out if ALL dates have passed (no future dates, no today)
             // For one-time expenses: gray out if the date has passed
             const shouldGrayOut = isRecurring 
               ? !hasFutureDates && !hasTodayDate  // All dates are past (no future, no today)
-              : hasPastDates;  // Single date is past
+              : hasPastDates && !hasTodayDate;  // Single date is past (and not today)
             
-            // Format dates for display (only showing remaining dates)
+            // Format dates for display (showing all dates)
             const formatDates = () => {
               if (!isRecurring) {
-                const itemDate = new Date(remainingItems[0].expense_date);
+                const itemDate = new Date(allItems[0].expense_date);
                 itemDate.setHours(0, 0, 0, 0);
-            const isPastDate = isPast(itemDate) && !isToday(itemDate);
+                const isPastDate = isPast(itemDate) && !isToday(itemDate);
                 return format(itemDate, isPastDate ? "MMM d" : "PPP");
               }
               
-              // For recurring expenses, show compact format with only remaining dates
+              // For recurring expenses, show compact format with all dates
               const sortedDates = [...dates].sort((a, b) => a.getTime() - b.getTime());
               
               // Try to group consecutive dates
@@ -1459,7 +1457,7 @@ const Coaster = () => {
                         shouldGrayOut ? "text-muted-foreground" : "text-foreground"
                       )}>
                         ${formatCurrency(Number(firstExpense.amount))}
-                        {isRecurring && ` × ${remainingItems.length}`}
+                        {isRecurring && ` × ${activeItems.length}`}
                       </p>
                       <div className="flex gap-1">
                       <Button

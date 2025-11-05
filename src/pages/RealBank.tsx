@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Wallet, CreditCard, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, startOfToday, isPast, isToday } from "date-fns";
 
 type BankAccountWithType = {
   id: string;
@@ -79,20 +79,29 @@ const RealBank = () => {
     ['credit_card', 'loan'].includes(acc.account_type?.toLowerCase() || '')
   );
 
-  // Calculate expenses per account
+  // Helper function to check if an expense is active (today or future)
+  const isActiveExpense = (expense: CoasterItem) => {
+    const itemDate = new Date(expense.expense_date);
+    itemDate.setHours(0, 0, 0, 0);
+    return !isPast(itemDate) || isToday(itemDate);
+  };
+
+  // Calculate expenses per account (only active expenses)
   const getExpensesByAccount = (accountId: string) => {
-    return coasterItems.filter(item => item.bank_account_id === accountId);
+    return coasterItems.filter(item => 
+      item.bank_account_id === accountId && isActiveExpense(item)
+    );
   };
 
   const getExpensesTotalByAccount = (accountId: string) => {
     return coasterItems
-      .filter(item => item.bank_account_id === accountId)
+      .filter(item => item.bank_account_id === accountId && isActiveExpense(item))
       .reduce((sum, item) => sum + Number(item.amount), 0);
   };
 
-  // Calculate unallocated expenses
+  // Calculate unallocated expenses (only active expenses)
   const unallocatedExpenses = coasterItems
-    .filter(item => !item.bank_account_id)
+    .filter(item => !item.bank_account_id && isActiveExpense(item))
     .reduce((sum, item) => sum + Number(item.amount), 0);
 
   // Calculate totals
@@ -146,8 +155,8 @@ const RealBank = () => {
     const isExpanded = expandedAccounts.has(account.id);
     const expensesExpanded = expandedExpenses.has(account.id);
     const headerColor = isBankAccount 
-      ? "bg-gradient-to-br from-green-600 to-green-700 dark:from-green-700 dark:to-green-800"
-      : "bg-gradient-to-br from-pink-500 to-pink-600 dark:from-pink-600 dark:to-pink-700";
+      ? "bg-gradient-to-br from-green-400 to-green-500 dark:from-green-500 dark:to-green-600"
+      : "bg-gradient-to-br from-pink-300 to-pink-400 dark:from-pink-400 dark:to-pink-500";
     const ringColor = isBankAccount 
       ? "ring-green-200 dark:ring-green-800"
       : "ring-pink-200 dark:ring-pink-800";
@@ -277,10 +286,12 @@ const RealBank = () => {
     const expensesKey = isBankAccount ? "total-bank" : "total-credit";
     const filteredExpenses = isBankAccount
       ? coasterItems.filter(item => {
+          if (!isActiveExpense(item)) return false;
           if (!item.bank_account_id) return true;
           return bankAccounts.some(acc => acc.id === item.bank_account_id);
         })
       : coasterItems.filter(item => {
+          if (!isActiveExpense(item)) return false;
           if (!item.bank_account_id) return false;
           return creditAccounts.some(acc => acc.id === item.bank_account_id);
         });
@@ -399,14 +410,14 @@ const RealBank = () => {
             <h2 className="text-2xl md:text-3xl font-bold">My Tab</h2>
           </div>
 
-          {/* Individual Bank Accounts - Responsive Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {bankAccounts.map((account) => renderAccountCard(account, true, true))}
-          </div>
-
           {/* Total Tab - Full Width */}
           <div className="w-full">
             {renderTotalTab(true)}
+          </div>
+
+          {/* Individual Bank Accounts - Responsive Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {bankAccounts.map((account) => renderAccountCard(account, true, true))}
           </div>
 
           {unallocatedExpenses > 0 && (
@@ -431,14 +442,14 @@ const RealBank = () => {
             <h2 className="text-2xl md:text-3xl font-bold">My Credit Tab</h2>
           </div>
 
-          {/* Individual Credit Accounts - Responsive Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {creditAccounts.map((account) => renderAccountCard(account, false, true))}
-          </div>
-
           {/* Total Tab - Full Width */}
           <div className="w-full">
             {renderTotalTab(false)}
+          </div>
+
+          {/* Individual Credit Accounts - Responsive Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {creditAccounts.map((account) => renderAccountCard(account, false, true))}
           </div>
         </div>
       )}
