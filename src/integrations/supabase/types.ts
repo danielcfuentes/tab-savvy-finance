@@ -132,6 +132,59 @@ export type Database = {
           },
         ]
       }
+      bills: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          category: string
+          payment_date: string
+          payment_date_next: string | null
+          amount_now: number
+          amount_next: number
+          bank_account_id: string
+          scheduled_type: string
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          category: string
+          payment_date: string
+          payment_date_next?: string | null
+          amount_now?: number
+          amount_next?: number
+          bank_account_id: string
+          scheduled_type: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          category?: string
+          payment_date?: string
+          payment_date_next?: string | null
+          amount_now?: number
+          amount_next?: number
+          bank_account_id?: string
+          scheduled_type?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bills_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
