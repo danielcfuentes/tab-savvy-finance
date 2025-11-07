@@ -1,4 +1,4 @@
-import { differenceInDays, isAfter, isToday, startOfToday } from "date-fns";
+import { differenceInDays, isAfter, isToday, startOfToday, getDate, endOfMonth, startOfMonth } from "date-fns";
 
 export type BankAccount = {
   id: string;
@@ -194,5 +194,307 @@ export function getSpendingPace(
     projectedSpend,
     isOnTrack,
   };
+}
+
+export type Bill = {
+  id: string;
+  name: string;
+  category: string;
+  payment_date: string;
+  payment_date_next: string | null;
+  amount_now: number;
+  amount_next: number;
+  bank_account_id: string;
+};
+
+/**
+ * Calculate closing tab balance per account
+ * Closing Tab = Bank balance - Credit balance - Coaster expenses for that account
+ */
+export function getClosingTabPerAccount(
+  bankAccounts: BankAccount[],
+  coasterItems: CoasterItem[],
+  accountId: string
+): number {
+  const account = bankAccounts.find(acc => acc.id === accountId);
+  if (!account) return 0;
+
+  const accountType = account.account_type?.toLowerCase() || '';
+  const isBankAccount = ['checking', 'savings', 'digital_wallet'].includes(accountType);
+  const isCreditAccount = ['credit_card', 'loan'].includes(accountType);
+
+  let balance = 0;
+  if (isBankAccount) {
+    balance = Number(account.balance);
+  } else if (isCreditAccount) {
+    balance = -Number(account.balance); // Credit accounts are negative
+  }
+
+  // Subtract coaster expenses allocated to this account
+  const accountExpenses = coasterItems
+    .filter(item => item.bank_account_id === accountId)
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+
+  return balance - accountExpenses;
+}
+
+/**
+ * Calculate open bills total per account
+ * Open bills are bills due on or after the next paycheck
+ */
+export function getOpenBillsPerAccount(
+  bills: Bill[],
+  nextPaycheckDate: Date | null,
+  accountId: string
+): number {
+  if (!nextPaycheckDate) return 0;
+
+  return bills
+    .filter(bill => {
+      const billDate = new Date(bill.payment_date);
+      billDate.setHours(0, 0, 0, 0);
+      return bill.bank_account_id === accountId && billDate >= nextPaycheckDate;
+    })
+    .reduce((sum, bill) => sum + Number(bill.amount_now), 0);
+}
+
+/**
+ * Calculate next paycheck amount per account
+ */
+export function getNextPaycheckPerAccount(
+  incomes: IncomeItem[],
+  nextPaycheckDate: Date | null,
+  accountId: string
+): number {
+  if (!nextPaycheckDate) return 0;
+
+  return incomes
+    .filter(income => income.bank_account_id === accountId)
+    .filter(income => {
+      const dueDate = income.due_date ? new Date(income.due_date) : null;
+      const dueDateNext = income.due_date_next ? new Date(income.due_date_next) : null;
+      const checkDate = dueDate && dueDate.getTime() === nextPaycheckDate.getTime() 
+        ? dueDate 
+        : dueDateNext && dueDateNext.getTime() === nextPaycheckDate.getTime() 
+        ? dueDateNext 
+        : null;
+      return checkDate !== null;
+    })
+    .reduce((sum, income) => {
+      const dueDate = income.due_date ? new Date(income.due_date) : null;
+      const dueDateNext = income.due_date_next ? new Date(income.due_date_next) : null;
+      if (dueDate && dueDate.getTime() === nextPaycheckDate.getTime()) {
+        return sum + Number(income.amount_now);
+      }
+      if (dueDateNext && dueDateNext.getTime() === nextPaycheckDate.getTime()) {
+        return sum + Number(income.amount_next);
+      }
+      return sum;
+    }, 0);
+}
+
+/**
+ * Calculate total next paycheck amount
+ */
+export function getNextPaycheckTotal(incomes: IncomeItem[], nextPaycheckDate: Date | null): number {
+  if (!nextPaycheckDate) return 0;
+
+  return incomes
+    .filter(income => {
+      const dueDate = income.due_date ? new Date(income.due_date) : null;
+      const dueDateNext = income.due_date_next ? new Date(income.due_date_next) : null;
+      const checkDate = dueDate && dueDate.getTime() === nextPaycheckDate.getTime() 
+        ? dueDate 
+        : dueDateNext && dueDateNext.getTime() === nextPaycheckDate.getTime() 
+        ? dueDateNext 
+        : null;
+      return checkDate !== null;
+    })
+    .reduce((sum, income) => {
+      const dueDate = income.due_date ? new Date(income.due_date) : null;
+      const dueDateNext = income.due_date_next ? new Date(income.due_date_next) : null;
+      if (dueDate && dueDate.getTime() === nextPaycheckDate.getTime()) {
+        return sum + Number(income.amount_now);
+      }
+      if (dueDateNext && dueDateNext.getTime() === nextPaycheckDate.getTime()) {
+        return sum + Number(income.amount_next);
+      }
+      return sum;
+    }, 0);
+}
+
+/**
+ * Calculate coasting estimate (daily budget * remaining days)
+ * This is typically shown only for the first/main account
+ */
+export function getCoastingEstimate(
+  realBalance: number,
+  coastingDays: number
+): number {
+  if (coastingDays <= 0) return 0;
+  const dailyBudget = getDailyBudget(realBalance, coastingDays);
+  return dailyBudget * coastingDays;
+}
+
+/**
+ * Calculate coasting estimate per account
+ * For now, we'll only show it for the first account (main checking account)
+ */
+export function getCoastingEstimatePerAccount(
+  accountId: string,
+  accountIds: string[],
+  realBalance: number,
+  coastingDays: number
+): number {
+  // Only show coasting estimate for the first account (typically main checking)
+  if (accountIds.length === 0 || accountId !== accountIds[0]) return 0;
+  return getCoastingEstimate(realBalance, coastingDays);
+}
+
+/**
+ * Calculate full month tab expenses by day ranges per account
+ */
+export function getFullMonthTabByRanges(
+  coasterItems: CoasterItem[],
+  bills: Bill[],
+  accountIds: string[]
+): {
+  byAccount: Record<string, {
+    range1_5: number;
+    range6_10: number;
+    range11_15: number;
+    range16_20: number;
+    range21_25: number;
+    range25_31: number;
+    total: number;
+  }>;
+  totals: {
+    range1_5: number;
+    range6_10: number;
+    range11_15: number;
+    range16_20: number;
+    range21_25: number;
+    range25_31: number;
+    total: number;
+  };
+} {
+  const today = startOfToday();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+
+  const byAccount: Record<string, {
+    range1_5: number;
+    range6_10: number;
+    range11_15: number;
+    range16_20: number;
+    range21_25: number;
+    range25_31: number;
+    total: number;
+  }> = {};
+
+  // Initialize all accounts
+  accountIds.forEach(accountId => {
+    byAccount[accountId] = {
+      range1_5: 0,
+      range6_10: 0,
+      range11_15: 0,
+      range16_20: 0,
+      range21_25: 0,
+      range25_31: 0,
+      total: 0,
+    };
+  });
+
+  // Process coaster items
+  coasterItems.forEach(item => {
+    const itemDate = new Date(item.expense_date);
+    if (itemDate.getFullYear() === currentYear && itemDate.getMonth() === currentMonth) {
+      const day = getDate(itemDate);
+      const amount = Number(item.amount);
+      const accountId = item.bank_account_id || "unallocated";
+      
+      if (!byAccount[accountId]) {
+        byAccount[accountId] = {
+          range1_5: 0,
+          range6_10: 0,
+          range11_15: 0,
+          range16_20: 0,
+          range21_25: 0,
+          range25_31: 0,
+          total: 0,
+        };
+      }
+      
+      if (day >= 1 && day <= 5) byAccount[accountId].range1_5 += amount;
+      else if (day >= 6 && day <= 10) byAccount[accountId].range6_10 += amount;
+      else if (day >= 11 && day <= 15) byAccount[accountId].range11_15 += amount;
+      else if (day >= 16 && day <= 20) byAccount[accountId].range16_20 += amount;
+      else if (day >= 21 && day <= 25) byAccount[accountId].range21_25 += amount;
+      else if (day >= 25 && day <= 31) byAccount[accountId].range25_31 += amount;
+      
+      byAccount[accountId].total += amount;
+    }
+  });
+
+  // Process bills
+  bills.forEach(bill => {
+    const billDate = new Date(bill.payment_date);
+    if (billDate.getFullYear() === currentYear && billDate.getMonth() === currentMonth) {
+      const day = getDate(billDate);
+      const amount = Number(bill.amount_now);
+      const accountId = bill.bank_account_id;
+      
+      if (!byAccount[accountId]) {
+        byAccount[accountId] = {
+          range1_5: 0,
+          range6_10: 0,
+          range11_15: 0,
+          range16_20: 0,
+          range21_25: 0,
+          range25_31: 0,
+          total: 0,
+        };
+      }
+      
+      if (day >= 1 && day <= 5) byAccount[accountId].range1_5 += amount;
+      else if (day >= 6 && day <= 10) byAccount[accountId].range6_10 += amount;
+      else if (day >= 11 && day <= 15) byAccount[accountId].range11_15 += amount;
+      else if (day >= 16 && day <= 20) byAccount[accountId].range16_20 += amount;
+      else if (day >= 21 && day <= 25) byAccount[accountId].range21_25 += amount;
+      else if (day >= 25 && day <= 31) byAccount[accountId].range25_31 += amount;
+      
+      byAccount[accountId].total += amount;
+    }
+  });
+
+  // Calculate totals
+  const totals = Object.values(byAccount).reduce((acc, account) => ({
+    range1_5: acc.range1_5 + account.range1_5,
+    range6_10: acc.range6_10 + account.range6_10,
+    range11_15: acc.range11_15 + account.range11_15,
+    range16_20: acc.range16_20 + account.range16_20,
+    range21_25: acc.range21_25 + account.range21_25,
+    range25_31: acc.range25_31 + account.range25_31,
+    total: acc.total + account.total,
+  }), {
+    range1_5: 0,
+    range6_10: 0,
+    range11_15: 0,
+    range16_20: 0,
+    range21_25: 0,
+    range25_31: 0,
+    total: 0,
+  });
+
+  return { byAccount, totals };
+}
+
+/**
+ * Calculate number of months covered
+ * Number of Months Covered = Abek Tab / Full Month Total
+ */
+export function getMonthsCovered(abekTab: number, fullMonthTotal: number): number {
+  if (fullMonthTotal <= 0) return 0;
+  return abekTab / fullMonthTotal;
 }
 
