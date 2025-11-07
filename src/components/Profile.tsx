@@ -111,9 +111,9 @@ const Profile = () => {
         </Button>
       </DialogTrigger>
       <DialogTrigger asChild>
-        <Button variant="ghost" className="h-12 flex-col gap-0.5 px-0.5 text-xs md:hidden" size="sm">
+        <Button variant="ghost" className="h-12 w-full flex flex-col items-center justify-center gap-0.5 px-0.5 text-[9px] font-medium md:hidden" size="sm">
           <User className="w-3.5 h-3.5" />
-          <span className="text-xs leading-tight">Profile</span>
+          <span className="leading-tight text-center truncate w-full">Profile</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg w-[92vw] md:w-auto max-h-[90vh] md:max-h-[85vh] overflow-y-auto flex flex-col">
