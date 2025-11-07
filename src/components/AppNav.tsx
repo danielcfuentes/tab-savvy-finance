@@ -13,7 +13,7 @@ const AppNav = () => {
     { name: "Real Bank", path: "/realbank", icon: DollarSign },
     { name: "Bills", path: "/bills", icon: FileText },
     { name: "Close Out", path: "/closeout", icon: CheckCircle },
-    { name: "Survivor", path: "/survivor", icon: LifeBuoy },
+    { name: "Abek", path: "/survivor", icon: LifeBuoy },
   ];
 
   const handleProfileClick = () => {

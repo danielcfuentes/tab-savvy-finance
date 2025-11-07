@@ -34,7 +34,7 @@ const Landing = () => {
     { name: "Coaster", icon: "🍻", desc: "Daily spending tracker" },
     { name: "Bills", icon: "🧾", desc: "Manage payments" },
     { name: "Close Out", icon: "✅", desc: "Monthly summary" },
-    { name: "Survivor", icon: "🛟", desc: "Emergency mode" },
+    { name: "Abek", icon: "🛟", desc: "Master your money" },
   ];
 
   return (

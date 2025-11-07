@@ -9,7 +9,7 @@ A daily budgeting tool built around the bar tab metaphor. Take control of your m
 - **Bill Planning**: Never miss a payment
 - **Coaster Mode**: Daily spending tracker
 - **Close Out**: Monthly summary
-- **Survivor Mode**: Emergency budgeting mode
+- **Abek**: Master your money
 
 ## Getting Started
 

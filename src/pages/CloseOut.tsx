@@ -308,12 +308,6 @@ const CloseOut = () => {
         )}
       </div>
 
-      {/* Summary Totals */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {renderTotalCard(true)}
-        {renderTotalCard(false)}
-      </div>
-
       {/* Closed Out Bills Section */}
       {closedOutBills.length > 0 && (
         <div className="space-y-5">
@@ -325,6 +319,13 @@ const CloseOut = () => {
               Closed Out Bills
             </h2>
           </div>
+
+          {/* Total Closed Out - Full Width */}
+          <div className="w-full">
+            {renderTotalCard(true)}
+          </div>
+
+          {/* Individual Closed Out Bills - Responsive Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {closedOutBills.map((bill) => renderBillCard(bill, true))}
           </div>
@@ -340,6 +341,13 @@ const CloseOut = () => {
             </div>
             <h2 className="text-2xl md:text-3xl font-bold">Open Bills</h2>
           </div>
+
+          {/* Total Open - Full Width */}
+          <div className="w-full">
+            {renderTotalCard(false)}
+          </div>
+
+          {/* Individual Open Bills - Responsive Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {openBills.map((bill) => renderBillCard(bill, false))}
           </div>
