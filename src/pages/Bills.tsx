@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Calendar as CalendarIcon, X, Edit2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Calendar as CalendarIcon, X, Edit2, Info } from "lucide-react";
 import { format, startOfToday, startOfDay, addMonths, isSameMonth, startOfMonth, isPast, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getNextIncomeDue, type IncomeItem } from "@/lib/calculations";
 
 type BankAccount = {
   id: string;
@@ -34,6 +35,7 @@ type Bill = {
 const Bills = () => {
   const [bills, setBills] = useState<Bill[]>([]);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [incomes, setIncomes] = useState<IncomeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
@@ -172,9 +174,10 @@ const Bills = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [billsRes, accountsRes] = await Promise.all([
+    const [billsRes, accountsRes, incomesRes] = await Promise.all([
       supabase.from("bills").select("*, bank_accounts(id, name)").order("payment_date", { ascending: true, nullsFirst: false }),
       supabase.from("bank_accounts").select("id, name"),
+      supabase.from("income").select("*").order("due_date", { ascending: true }),
     ]);
 
     if (billsRes.error) {
@@ -188,6 +191,22 @@ const Bills = () => {
       toast({ variant: "destructive", title: "Error", description: "Failed to fetch accounts" });
     } else {
       setAccounts(accountsRes.data || []);
+    }
+
+    if (incomesRes.error) {
+      toast({ variant: "destructive", title: "Error", description: "Failed to fetch income" });
+    } else {
+      // Map income data to match IncomeItem type
+      const mappedIncomes = (incomesRes.data || []).map((income: any) => ({
+        id: income.id,
+        name: income.name,
+        amount_now: income.amount_now,
+        amount_next: income.amount_next,
+        due_date: income.due_date,
+        due_date_next: income.due_date_next,
+        bank_account_id: income.bank_account_id,
+      }));
+      setIncomes(mappedIncomes);
     }
 
     setLoading(false);
@@ -471,6 +490,24 @@ const Bills = () => {
     nextMonthClassNames["anyNextBill"] = "cal-any-next";
   }
 
+  // Get next paycheck date and add it as a modifier
+  const nextPaycheckDate = getNextIncomeDue(incomes);
+  if (nextPaycheckDate) {
+    const paycheckDate = startOfDay(nextPaycheckDate);
+    const paycheckDateOnly = new Date(paycheckDate.getFullYear(), paycheckDate.getMonth(), paycheckDate.getDate());
+    
+    // Add to this month if it's in this month
+    if (isSameMonth(paycheckDateOnly, thisMonth)) {
+      thisMonthModifiers["nextPaycheck"] = [paycheckDateOnly];
+      thisMonthClassNames["nextPaycheck"] = "next-paycheck";
+    }
+    // Add to next month if it's in next month
+    if (isSameMonth(paycheckDateOnly, nextMonth)) {
+      nextMonthModifiers["nextPaycheck"] = [paycheckDateOnly];
+      nextMonthClassNames["nextPaycheck"] = "next-paycheck";
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -644,12 +681,57 @@ const Bills = () => {
           border-radius: 0.5rem !important;
           opacity: 0.6 !important;
         }
+        
+        /* Next Paycheck Date Marker */
+        .rdp button.next-paycheck,
+        .rdp button.rdp-day.next-paycheck,
+        .rdp button[class*="next-paycheck"] {
+          border: 3px solid #00A86B !important;
+          border-style: dashed !important;
+          box-shadow: 0 0 0 2px rgba(0, 168, 107, 0.2) !important;
+          position: relative !important;
+        }
+        
+        .rdp button.next-paycheck::after {
+          content: "🚩" !important;
+          position: absolute !important;
+          top: -2px !important;
+          right: -2px !important;
+          font-size: 10px !important;
+          background: #00A86B !important;
+          border-radius: 50% !important;
+          width: 16px !important;
+          height: 16px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          z-index: 10 !important;
+        }
       `}</style>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="border-2">
           <CardHeader className="pb-2">
-            <CardTitle>This Month</CardTitle>
-            <CardDescription>Bills highlighted</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>This Month</CardTitle>
+                <CardDescription>Bills highlighted</CardDescription>
+              </div>
+              {nextPaycheckDate && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className="text-muted-foreground hover:text-foreground transition-colors">
+                      <Info className="w-4 h-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent side="left" className="max-w-xs">
+                    <p className="font-semibold mb-1">FYI: Close Out Tab Logic</p>
+                    <p className="text-sm">
+                      Bills before your next paycheck date ({format(nextPaycheckDate, "MMM d")}) are considered to be <span className="font-semibold text-green-600">closed</span>. Bills on or after your next pay date are <span className="font-semibold text-yellow-600">open</span>. This is used in the Close Out Tab.
+                    </p>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Calendar
@@ -673,6 +755,11 @@ const Bills = () => {
                   const { date, className, displayMonth, ...props } = dayProps;
                   const dateKey = startOfDay(date).toISOString();
                   const billInfo = billInfoByDate.get(dateKey);
+                  
+                  // Check if this is the next paycheck date
+                  const isNextPaycheck = nextPaycheckDate && 
+                    startOfDay(date).getTime() === startOfDay(nextPaycheckDate).getTime() &&
+                    isSameMonth(date, thisMonth);
 
                   const { displayMonth: _, ...restProps } = props;
                   const buttonProps: any = { ...restProps };
@@ -698,7 +785,11 @@ const Bills = () => {
                       boxShadow: `0 2px 4px ${billColor}33`,
                       ...props.style,
                     };
-                    buttonProps.className = cn(className, `cal-${billIdx}-this`);
+                    buttonProps.className = cn(
+                      className, 
+                      `cal-${billIdx}-this`,
+                      isNextPaycheck && "next-paycheck"
+                    );
                     
                     return (
                       <Popover>
@@ -708,6 +799,41 @@ const Bills = () => {
                         <PopoverContent className="w-auto p-2" side="top">
                           <p className="font-semibold">{billInfo.name}</p>
                           <p className="text-sm">${billInfo.amount.toFixed(2)}</p>
+                          {isNextPaycheck && (
+                            <p className="text-xs text-muted-foreground mt-1">🚩 Next Paycheck</p>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    );
+                  }
+                  
+                  // Handle next paycheck date without a bill
+                  if (isNextPaycheck && !billInfo) {
+                    buttonProps.style = {
+                      width: '100%',
+                      height: '100%',
+                      padding: '0',
+                      margin: '0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '3px dashed #00A86B',
+                      boxShadow: '0 0 0 2px rgba(0, 168, 107, 0.2)',
+                      position: 'relative',
+                      ...props.style,
+                    };
+                    buttonProps.className = cn(className, "next-paycheck");
+                    
+                    return (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button {...buttonProps}>{date.getDate()}</button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-2" side="top">
+                          <p className="font-semibold">🚩 Next Paycheck</p>
+                          {nextPaycheckDate && (
+                            <p className="text-sm">{format(nextPaycheckDate, "MMM d, yyyy")}</p>
+                          )}
                         </PopoverContent>
                       </Popover>
                     );
@@ -781,6 +907,11 @@ const Bills = () => {
                   const dateKeyISO = startOfDay(date).toISOString();
                   const dateKeyWithNext = `next-${dateKeyISO}`;
                   
+                  // Check if this is the next paycheck date
+                  const isNextPaycheck = nextPaycheckDate && 
+                    startOfDay(date).getTime() === startOfDay(nextPaycheckDate).getTime() &&
+                    isSameMonth(date, nextMonth);
+                  
                   let billInfo = billInfoByDate.get(dateKeyWithNext);
                   if (!billInfo) {
                     const matchingBill = bills.find(b => {
@@ -829,7 +960,11 @@ const Bills = () => {
                       boxShadow: `0 1px 2px ${billColor}26`,
                       ...props.style,
                     };
-                    buttonProps.className = cn(className, `cal-${billIdx}-next`);
+                    buttonProps.className = cn(
+                      className, 
+                      `cal-${billIdx}-next`,
+                      isNextPaycheck && "next-paycheck"
+                    );
                     
                     return (
                       <Popover>
@@ -839,6 +974,43 @@ const Bills = () => {
                         <PopoverContent className="w-auto p-2" side="top">
                           <p className="font-semibold">{billInfo.name}</p>
                           <p className="text-sm">${billInfo.amount.toFixed(2)}</p>
+                          {isNextPaycheck && (
+                            <p className="text-xs text-muted-foreground mt-1">🚩 Next Paycheck</p>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    );
+                  }
+                  
+                  // Handle next paycheck date without a bill
+                  if (isNextPaycheck && !billInfo) {
+                    const { displayMonth: _, ...restProps } = props;
+                    const buttonProps: any = { ...restProps };
+                    buttonProps.style = {
+                      width: '100%',
+                      height: '100%',
+                      padding: '0',
+                      margin: '0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '3px dashed #00A86B',
+                      boxShadow: '0 0 0 2px rgba(0, 168, 107, 0.2)',
+                      position: 'relative',
+                      ...props.style,
+                    };
+                    buttonProps.className = cn(className, "next-paycheck");
+                    
+                    return (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button {...buttonProps}>{date.getDate()}</button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-2" side="top">
+                          <p className="font-semibold">🚩 Next Paycheck</p>
+                          {nextPaycheckDate && (
+                            <p className="text-sm">{format(nextPaycheckDate, "MMM d, yyyy")}</p>
+                          )}
                         </PopoverContent>
                       </Popover>
                     );

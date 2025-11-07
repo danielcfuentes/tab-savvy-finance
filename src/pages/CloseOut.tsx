@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2, Clock, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, CheckCircle2, Clock, ChevronDown, ChevronRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { getNextIncomeDue, type IncomeItem } from "@/lib/calculations";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type BankAccount = {
   id: string;
@@ -297,15 +298,34 @@ const CloseOut = () => {
         <h1 className="text-3xl md:text-4xl font-bold text-foreground">
           Close Out Tab ✅
         </h1>
-        <p className="text-muted-foreground text-sm md:text-base">
-          Track which bills have been completed for the current pay period and
-          which ones are still pending.
-        </p>
-        {nextPaycheckDate && (
-          <p className="text-sm text-muted-foreground">
-            Next paycheck: {format(nextPaycheckDate, "MMM d, yyyy")}
-          </p>
-        )}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <p className="text-muted-foreground text-sm md:text-base">
+              Track which bills have been completed for the current pay period and
+              which ones are still pending.
+            </p>
+            {nextPaycheckDate && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Next paycheck: {format(nextPaycheckDate, "MMM d, yyyy")}
+              </p>
+            )}
+          </div>
+          {nextPaycheckDate && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                  <Info className="w-5 h-5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="left" className="max-w-xs">
+                <p className="font-semibold mb-1">FYI: Close Out Tab Logic</p>
+                <p className="text-sm">
+                  Bills before your next paycheck date ({format(nextPaycheckDate, "MMM d")}) are considered to be <span className="font-semibold text-green-600">closed</span>. Bills on or after your next pay date are <span className="font-semibold text-yellow-600">open</span>.
+                </p>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
 
       {/* Closed Out Bills Section */}
