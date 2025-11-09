@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Calendar as CalendarIcon, X, Edit2, Info } from "lucide-react";
+import { Loader2, Plus, Trash2, Calendar as CalendarIcon, X, Edit2, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { format, startOfToday, startOfDay, addMonths, isSameMonth, startOfMonth, isPast, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getNextIncomeDue, type IncomeItem } from "@/lib/calculations";
@@ -41,6 +42,7 @@ const Bills = () => {
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [paymentDate, setPaymentDate] = useState<Date | undefined>();
   const [dismissedSlots, setDismissedSlots] = useState<Set<number>>(new Set());
+  const [calendarsOpen, setCalendarsOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -398,6 +400,9 @@ const Bills = () => {
 
   const billsThisMonth = billsThisMonthData.map(item => item.date);
 
+  // Get next paycheck date
+  const nextPaycheckDate = getNextIncomeDue(incomes);
+
   // Get next month bills
   const billsNextMonth = bills
     .filter(b => {
@@ -490,8 +495,7 @@ const Bills = () => {
     nextMonthClassNames["anyNextBill"] = "cal-any-next";
   }
 
-  // Get next paycheck date and add it as a modifier
-  const nextPaycheckDate = getNextIncomeDue(incomes);
+  // Add next paycheck date as a modifier
   if (nextPaycheckDate) {
     const paycheckDate = startOfDay(nextPaycheckDate);
     const paycheckDateOnly = new Date(paycheckDate.getFullYear(), paycheckDate.getMonth(), paycheckDate.getDate());
@@ -525,7 +529,101 @@ const Bills = () => {
     setDismissedSlots(prev => new Set(prev).add(slotNumber));
   };
 
-  // Calculate totals
+  // Calculate scoreboard metrics
+  // 1. This Month Bills Locked In - all bills in this month (including past ones)
+  const thisMonthBillsLockedIn = bills
+    .filter(b => {
+      const d = toTzDate(b.payment_date);
+      const dNext = toTzDate(b.payment_date_next);
+      return (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
+    })
+    .reduce((sum, b) => {
+      const d = toTzDate(b.payment_date);
+      const dNext = toTzDate(b.payment_date_next);
+      if (d && isSameMonth(d, thisMonth)) {
+        return sum + Number(b.amount_now);
+      } else if (dNext && isSameMonth(dNext, thisMonth)) {
+        return sum + Number(b.amount_next);
+      }
+      return sum;
+    }, 0);
+
+  // 2. Next Month Bills Locked In - all bills in next month
+  const nextMonthBillsLockedIn = bills
+    .filter(b => {
+      const dNext = toTzDate(b.payment_date_next);
+      const d = toTzDate(b.payment_date);
+      return (dNext && isSameMonth(dNext, nextMonth)) || (d && isSameMonth(d, nextMonth));
+    })
+    .reduce((sum, b) => {
+      const dNext = toTzDate(b.payment_date_next);
+      const d = toTzDate(b.payment_date);
+      if (dNext && isSameMonth(dNext, nextMonth)) {
+        return sum + Number(b.amount_next);
+      } else if (d && isSameMonth(d, nextMonth)) {
+        return sum + Number(b.amount_next);
+      }
+      return sum;
+    }, 0);
+
+  // 3. Bills to Close Before Next Paycheck - bills in this month that are due before next paycheck
+  const billsToCloseBeforePaycheck = bills
+    .filter(b => {
+      const d = toTzDate(b.payment_date);
+      const dNext = toTzDate(b.payment_date_next);
+      const isInThisMonth = (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
+      if (!isInThisMonth || !nextPaycheckDate) return false;
+      const itemDate = (d && isSameMonth(d, thisMonth)) ? d : dNext;
+      if (!itemDate) return false;
+      return itemDate < nextPaycheckDate;
+    })
+    .reduce((sum, b) => {
+      const d = toTzDate(b.payment_date);
+      const dNext = toTzDate(b.payment_date_next);
+      if (d && isSameMonth(d, thisMonth)) {
+        const itemDate = d;
+        if (nextPaycheckDate && itemDate < nextPaycheckDate) {
+          return sum + Number(b.amount_now);
+        }
+      } else if (dNext && isSameMonth(dNext, thisMonth)) {
+        const itemDate = dNext;
+        if (nextPaycheckDate && itemDate < nextPaycheckDate) {
+          return sum + Number(b.amount_next);
+        }
+      }
+      return sum;
+    }, 0);
+
+  // 4. Bills Open After Paycheck - bills in this month that are due on or after next paycheck
+  const billsOpenAfterPaycheck = bills
+    .filter(b => {
+      const d = toTzDate(b.payment_date);
+      const dNext = toTzDate(b.payment_date_next);
+      const isInThisMonth = (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
+      if (!isInThisMonth) return false;
+      const itemDate = (d && isSameMonth(d, thisMonth)) ? d : dNext;
+      if (!itemDate) return false;
+      if (!nextPaycheckDate) return true; // If no next paycheck, treat as open
+      return itemDate >= nextPaycheckDate;
+    })
+    .reduce((sum, b) => {
+      const d = toTzDate(b.payment_date);
+      const dNext = toTzDate(b.payment_date_next);
+      if (d && isSameMonth(d, thisMonth)) {
+        const itemDate = d;
+        if (!nextPaycheckDate || itemDate >= nextPaycheckDate) {
+          return sum + Number(b.amount_now);
+        }
+      } else if (dNext && isSameMonth(dNext, thisMonth)) {
+        const itemDate = dNext;
+        if (!nextPaycheckDate || itemDate >= nextPaycheckDate) {
+          return sum + Number(b.amount_next);
+        }
+      }
+      return sum;
+    }, 0);
+
+  // Calculate totals for the summary row (keeping existing logic)
   const totalThisMonth = bills
     .filter(b => {
       const d = toTzDate(b.payment_date);
@@ -581,7 +679,53 @@ const Bills = () => {
         <p className="text-lg font-semibold">{new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: resolvedTz }).format(new Date())}</p>
       </div>
 
-      {/* Calendars */}
+      {/* Scoreboard */}
+      <Card className="border-2">
+        <CardContent className="py-6">
+          <div className="grid grid-cols-2 gap-6">
+            {/* Top Row - Pair 1 */}
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">This Month Bills Locked In</p>
+              <p className="text-3xl font-bold text-foreground">${thisMonthBillsLockedIn.toFixed(2)}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Next Month Bills Locked In</p>
+              <p className="text-3xl font-bold text-foreground">${nextMonthBillsLockedIn.toFixed(2)}</p>
+            </div>
+            {/* Bottom Row - Pair 2 */}
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Bills to Close Before Next Paycheck</p>
+              <p className="text-3xl font-bold text-foreground">${billsToCloseBeforePaycheck.toFixed(2)}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Bills Open After Paycheck</p>
+              <p className="text-3xl font-bold text-foreground">${billsOpenAfterPaycheck.toFixed(2)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Calendars - Collapsible */}
+      <Collapsible open={calendarsOpen} onOpenChange={setCalendarsOpen}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Bills Calendars</h2>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" size="sm">
+              {calendarsOpen ? (
+                <>
+                  <ChevronUp className="w-4 h-4 mr-2" />
+                  Hide Bills Calendars
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4 mr-2" />
+                  See Bills Calendars
+                </>
+              )}
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent>
       <style>{`
         .rdp .rdp-nav,
         .rdp button.rdp-nav_button_previous,
@@ -1059,6 +1203,8 @@ const Bills = () => {
           </CardContent>
         </Card>
       </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Bills List */}
       <div className="flex items-center justify-between">
@@ -1068,24 +1214,6 @@ const Bills = () => {
           Add Bill
         </Button>
       </div>
-
-      {/* Summary Row */}
-      <Card className="border-2 bg-muted/50">
-        <CardContent className="py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Locked-In Bill Total</p>
-              <p className="text-2xl font-bold text-foreground">${totalThisMonth.toFixed(2)}</p>
-              <p className="text-xs text-muted-foreground mt-1">This Month</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Locked-In Bill Total</p>
-              <p className="text-2xl font-bold text-foreground">${totalNextMonth.toFixed(2)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Next Month</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <div className="grid gap-4">
         {bills.map((bill) => (
