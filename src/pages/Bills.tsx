@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Calendar as CalendarIcon, X, Edit2, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { format, startOfToday, startOfDay, addMonths, isSameMonth, startOfMonth, isPast, isToday } from "date-fns";
@@ -1380,11 +1381,7 @@ const Bills = () => {
           <CardDescription>Total amounts by category</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="font-semibold text-sm">Type of Bill</div>
-            <div className="font-semibold text-sm text-center">This Month Amount</div>
-            <div className="font-semibold text-sm text-center">Next Month Amount</div>
-            
+          <Accordion type="multiple" className="w-full">
             {["Rent", "Need", "Want", "Debt", "Savings", "Investment"].map((category) => {
               const categoryBills = bills.filter(b => b.category === category);
               
@@ -1422,15 +1419,91 @@ const Bills = () => {
                   return sum;
                 }, 0);
               
+              // Get bills for this month and next month to display in the dropdown
+              const billsThisMonth = categoryBills
+                .filter(b => {
+                  const d = toTzDate(b.payment_date);
+                  const dNext = toTzDate(b.payment_date_next);
+                  return (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
+                })
+                .map(b => {
+                  const d = toTzDate(b.payment_date);
+                  const dNext = toTzDate(b.payment_date_next);
+                  let amount = 0;
+                  if (d && isSameMonth(d, thisMonth)) {
+                    amount = Number(b.amount_now);
+                  } else if (dNext && isSameMonth(dNext, thisMonth)) {
+                    amount = Number(b.amount_next);
+                  }
+                  return { bill: b, amount };
+                });
+              
+              const billsNextMonth = categoryBills
+                .filter(b => {
+                  const dNext = toTzDate(b.payment_date_next);
+                  const d = toTzDate(b.payment_date);
+                  return (dNext && isSameMonth(dNext, nextMonth)) || (d && isSameMonth(d, nextMonth));
+                })
+                .map(b => {
+                  const dNext = toTzDate(b.payment_date_next);
+                  const d = toTzDate(b.payment_date);
+                  let amount = 0;
+                  if (dNext && isSameMonth(dNext, nextMonth)) {
+                    amount = Number(b.amount_next);
+                  } else if (d && isSameMonth(d, nextMonth)) {
+                    amount = Number(b.amount_next);
+                  }
+                  return { bill: b, amount };
+                });
+              
               return (
-                <div key={category} className="contents">
-                  <div className="text-sm">{category}</div>
-                  <div className="text-sm text-center">${thisMonthTotal.toFixed(2)}</div>
-                  <div className="text-sm text-center">${nextMonthTotal.toFixed(2)}</div>
-                </div>
+                <AccordionItem key={category} value={category} className="border-b">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center justify-between w-full pr-4">
+                      <span className="font-semibold text-sm">{category}</span>
+                      <div className="flex gap-6">
+                        <span className="text-sm text-center min-w-[100px]">${thisMonthTotal.toFixed(2)}</span>
+                        <span className="text-sm text-center min-w-[100px]">${nextMonthTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="pt-4 space-y-4">
+                      {billsThisMonth.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground mb-2">This Month Bills:</p>
+                          <div className="space-y-1">
+                            {billsThisMonth.map(({ bill, amount }) => (
+                              <div key={bill.id} className="flex justify-between items-center text-sm py-1 px-2 rounded bg-muted/50">
+                                <span>{bill.name}</span>
+                                <span className="font-semibold">${amount.toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {billsNextMonth.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground mb-2">Next Month Bills:</p>
+                          <div className="space-y-1">
+                            {billsNextMonth.map(({ bill, amount }) => (
+                              <div key={bill.id} className="flex justify-between items-center text-sm py-1 px-2 rounded bg-muted/50">
+                                <span>{bill.name}</span>
+                                <span className="font-semibold">${amount.toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {billsThisMonth.length === 0 && billsNextMonth.length === 0 && (
+                        <p className="text-sm text-muted-foreground">No bills in this category</p>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
               );
             })}
-          </div>
+          </Accordion>
         </CardContent>
       </Card>
         </CollapsibleContent>
