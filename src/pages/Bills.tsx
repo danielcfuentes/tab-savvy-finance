@@ -43,6 +43,7 @@ const Bills = () => {
   const [paymentDate, setPaymentDate] = useState<Date | undefined>();
   const [dismissedSlots, setDismissedSlots] = useState<Set<number>>(new Set());
   const [calendarsOpen, setCalendarsOpen] = useState(false);
+  const [billsListOpen, setBillsListOpen] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -440,7 +441,7 @@ const Bills = () => {
   const thisMonthModifiers: ModRecord = {};
   const nextMonthModifiers: ModRecord = {};
 
-  const billInfoByDate = new Map<string, { name: string; amount: number; idx: number }>();
+  const billInfoByDate = new Map<string, { name: string; amount: number; idx: number }[]>();
 
   const thisMonthClassNames: Record<string, string> = {
     billsPast: "bills-past",
@@ -470,7 +471,9 @@ const Bills = () => {
       const dateOnly = new Date(normalizedDate.getFullYear(), normalizedDate.getMonth(), normalizedDate.getDate());
       thisMonthModifiers[keyThis] = [dateOnly];
       thisMonthClassNames[keyThis] = `cal-${idx}-this`;
-      billInfoByDate.set(dateOnly.toISOString(), { name: bill.name, amount: thisMonthAmount, idx });
+      const dateKey = dateOnly.toISOString();
+      const existing = billInfoByDate.get(dateKey) || [];
+      billInfoByDate.set(dateKey, [...existing, { name: bill.name, amount: thisMonthAmount, idx }]);
     }
 
     // Next Month
@@ -485,7 +488,9 @@ const Bills = () => {
       const dateOnly = new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
       nextMonthModifiers[keyNext] = [dateOnly];
       nextMonthClassNames[keyNext] = `cal-${idx}-next`;
-      billInfoByDate.set(`next-${dateOnly.toISOString()}`, { name: bill.name, amount: bill.amount_next, idx });
+      const dateKey = `next-${dateOnly.toISOString()}`;
+      const existing = billInfoByDate.get(dateKey) || [];
+      billInfoByDate.set(dateKey, [...existing, { name: bill.name, amount: bill.amount_next, idx }]);
     }
   });
 
@@ -898,7 +903,7 @@ const Bills = () => {
                 Day: (dayProps: any) => {
                   const { date, className, displayMonth, ...props } = dayProps;
                   const dateKey = startOfDay(date).toISOString();
-                  const billInfo = billInfoByDate.get(dateKey);
+                  const billsOnDate = billInfoByDate.get(dateKey) || [];
                   
                   // Check if this is the next paycheck date
                   const isNextPaycheck = nextPaycheckDate && 
@@ -908,8 +913,10 @@ const Bills = () => {
                   const { displayMonth: _, ...restProps } = props;
                   const buttonProps: any = { ...restProps };
                   
-                  if (billInfo) {
-                    const billIdx = billInfo.idx;
+                  if (billsOnDate.length > 0) {
+                    // Use the first bill's color for the button
+                    const firstBill = billsOnDate[0];
+                    const billIdx = firstBill.idx;
                     const billColor = colorPalette[billIdx % colorPalette.length];
                     
                     buttonProps.style = {
@@ -935,16 +942,42 @@ const Bills = () => {
                       isNextPaycheck && "next-paycheck"
                     );
                     
+                    const totalAmount = billsOnDate.reduce((sum, bill) => sum + bill.amount, 0);
+                    
                     return (
                       <Popover>
                         <PopoverTrigger asChild>
                           <button {...buttonProps}>{date.getDate()}</button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-2" side="top">
-                          <p className="font-semibold">{billInfo.name}</p>
-                          <p className="text-sm">${billInfo.amount.toFixed(2)}</p>
-                          {isNextPaycheck && (
-                            <p className="text-xs text-muted-foreground mt-1">🚩 Next Paycheck</p>
+                        <PopoverContent className="w-auto p-3" side="top">
+                          {billsOnDate.length === 1 ? (
+                            <>
+                              <p className="font-semibold">{billsOnDate[0].name}</p>
+                              <p className="text-sm">${billsOnDate[0].amount.toFixed(2)}</p>
+                              {isNextPaycheck && (
+                                <p className="text-xs text-muted-foreground mt-1">🚩 Next Paycheck</p>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <div className="space-y-2">
+                                {billsOnDate.map((bill, idx) => (
+                                  <div key={idx} className="flex justify-between items-center gap-4">
+                                    <span className="text-sm">{bill.name}</span>
+                                    <span className="text-sm font-semibold">${bill.amount.toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-2 pt-2 border-t">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm font-semibold">Total</span>
+                                  <span className="text-sm font-bold">${totalAmount.toFixed(2)}</span>
+                                </div>
+                              </div>
+                              {isNextPaycheck && (
+                                <p className="text-xs text-muted-foreground mt-2">🚩 Next Paycheck</p>
+                              )}
+                            </>
                           )}
                         </PopoverContent>
                       </Popover>
@@ -952,7 +985,7 @@ const Bills = () => {
                   }
                   
                   // Handle next paycheck date without a bill
-                  if (isNextPaycheck && !billInfo) {
+                  if (isNextPaycheck && billsOnDate.length === 0) {
                     buttonProps.style = {
                       width: '100%',
                       height: '100%',
@@ -984,7 +1017,7 @@ const Bills = () => {
                   }
                   
                   const isDateToday = isSameMonth(date, thisMonth) && isToday(date);
-                  if (isDateToday && !billInfo) {
+                  if (isDateToday && billsOnDate.length === 0) {
                     buttonProps.style = {
                       backgroundColor: '#E3F2FD',
                       color: '#1565C0',
@@ -1056,33 +1089,15 @@ const Bills = () => {
                     startOfDay(date).getTime() === startOfDay(nextPaycheckDate).getTime() &&
                     isSameMonth(date, nextMonth);
                   
-                  let billInfo = billInfoByDate.get(dateKeyWithNext);
-                  if (!billInfo) {
-                    const matchingBill = bills.find(b => {
-                      const dateNext = toTzDate(b.payment_date_next);
-                      const dateThis = toTzDate(b.payment_date);
-                      const checkDate = dateNext && isSameMonth(dateNext, nextMonth)
-                        ? dateNext
-                        : (dateThis && isSameMonth(dateThis, nextMonth) ? dateThis : null);
-                      if (!checkDate) return false;
-                      const checkDateISO = startOfDay(checkDate).toISOString();
-                      return checkDateISO === dateKeyISO;
-                    });
-                    if (matchingBill) {
-                      const idx = bills.indexOf(matchingBill);
-                      billInfo = {
-                        name: matchingBill.name,
-                        amount: matchingBill.amount_next || matchingBill.amount_now,
-                        idx
-                      };
-                    }
-                  }
+                  const billsOnDate = billInfoByDate.get(dateKeyWithNext) || [];
                   
                   const { displayMonth: _, ...restProps } = props;
                   const buttonProps: any = { ...restProps };
                   
-                  if (billInfo) {
-                    const billIdx = billInfo.idx;
+                  if (billsOnDate.length > 0) {
+                    // Use the first bill's color for the button
+                    const firstBill = billsOnDate[0];
+                    const billIdx = firstBill.idx;
                     const billColor = colorPalette[billIdx % colorPalette.length];
                     
                     buttonProps.style = {
@@ -1110,16 +1125,42 @@ const Bills = () => {
                       isNextPaycheck && "next-paycheck"
                     );
                     
+                    const totalAmount = billsOnDate.reduce((sum, bill) => sum + bill.amount, 0);
+                    
                     return (
                       <Popover>
                         <PopoverTrigger asChild>
                           <button {...buttonProps}>{date.getDate()}</button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-2" side="top">
-                          <p className="font-semibold">{billInfo.name}</p>
-                          <p className="text-sm">${billInfo.amount.toFixed(2)}</p>
-                          {isNextPaycheck && (
-                            <p className="text-xs text-muted-foreground mt-1">🚩 Next Paycheck</p>
+                        <PopoverContent className="w-auto p-3" side="top">
+                          {billsOnDate.length === 1 ? (
+                            <>
+                              <p className="font-semibold">{billsOnDate[0].name}</p>
+                              <p className="text-sm">${billsOnDate[0].amount.toFixed(2)}</p>
+                              {isNextPaycheck && (
+                                <p className="text-xs text-muted-foreground mt-1">🚩 Next Paycheck</p>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <div className="space-y-2">
+                                {billsOnDate.map((bill, idx) => (
+                                  <div key={idx} className="flex justify-between items-center gap-4">
+                                    <span className="text-sm">{bill.name}</span>
+                                    <span className="text-sm font-semibold">${bill.amount.toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-2 pt-2 border-t">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm font-semibold">Total</span>
+                                  <span className="text-sm font-bold">${totalAmount.toFixed(2)}</span>
+                                </div>
+                              </div>
+                              {isNextPaycheck && (
+                                <p className="text-xs text-muted-foreground mt-2">🚩 Next Paycheck</p>
+                              )}
+                            </>
                           )}
                         </PopoverContent>
                       </Popover>
@@ -1127,9 +1168,7 @@ const Bills = () => {
                   }
                   
                   // Handle next paycheck date without a bill
-                  if (isNextPaycheck && !billInfo) {
-                    const { displayMonth: _, ...restProps } = props;
-                    const buttonProps: any = { ...restProps };
+                  if (isNextPaycheck && billsOnDate.length === 0) {
                     buttonProps.style = {
                       width: '100%',
                       height: '100%',
@@ -1161,7 +1200,7 @@ const Bills = () => {
                   }
                   
                   const isDateToday = isSameMonth(date, nextMonth) && isToday(date);
-                  if (isDateToday && !billInfo) {
+                  if (isDateToday && billsOnDate.length === 0) {
                     buttonProps.style = {
                       backgroundColor: '#E3F2FD',
                       color: '#1565C0',
@@ -1206,15 +1245,94 @@ const Bills = () => {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Bills List */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">My Bills</h2>
-        <Button variant="secondary" onClick={() => setDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Bill
-        </Button>
-      </div>
+      {/* Bills Summary by Category */}
+      <Card className="border-2">
+        <CardHeader>
+          <CardTitle>Bills Summary</CardTitle>
+          <CardDescription>Total amounts by category</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="font-semibold text-sm">Type of Bill</div>
+            <div className="font-semibold text-sm text-center">This Month Amount</div>
+            <div className="font-semibold text-sm text-center">Next Month Amount</div>
+            
+            {["Rent", "Need", "Want", "Debt", "Savings", "Investment"].map((category) => {
+              const categoryBills = bills.filter(b => b.category === category);
+              
+              const thisMonthTotal = categoryBills
+                .filter(b => {
+                  const d = toTzDate(b.payment_date);
+                  const dNext = toTzDate(b.payment_date_next);
+                  return (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
+                })
+                .reduce((sum, b) => {
+                  const d = toTzDate(b.payment_date);
+                  const dNext = toTzDate(b.payment_date_next);
+                  if (d && isSameMonth(d, thisMonth)) {
+                    return sum + Number(b.amount_now);
+                  } else if (dNext && isSameMonth(dNext, thisMonth)) {
+                    return sum + Number(b.amount_next);
+                  }
+                  return sum;
+                }, 0);
+              
+              const nextMonthTotal = categoryBills
+                .filter(b => {
+                  const dNext = toTzDate(b.payment_date_next);
+                  const d = toTzDate(b.payment_date);
+                  return (dNext && isSameMonth(dNext, nextMonth)) || (d && isSameMonth(d, nextMonth));
+                })
+                .reduce((sum, b) => {
+                  const dNext = toTzDate(b.payment_date_next);
+                  const d = toTzDate(b.payment_date);
+                  if (dNext && isSameMonth(dNext, nextMonth)) {
+                    return sum + Number(b.amount_next);
+                  } else if (d && isSameMonth(d, nextMonth)) {
+                    return sum + Number(b.amount_next);
+                  }
+                  return sum;
+                }, 0);
+              
+              return (
+                <div key={category} className="contents">
+                  <div className="text-sm">{category}</div>
+                  <div className="text-sm text-center">${thisMonthTotal.toFixed(2)}</div>
+                  <div className="text-sm text-center">${nextMonthTotal.toFixed(2)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
+      {/* Bills List */}
+      <Collapsible open={billsListOpen} onOpenChange={setBillsListOpen}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">My Bills</h2>
+          <div className="flex items-center gap-2">
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm">
+                {billsListOpen ? (
+                  <>
+                    <ChevronUp className="w-4 h-4 mr-2" />
+                    Hide Bills
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4 mr-2" />
+                    Show Bills
+                  </>
+                )}
+              </Button>
+            </CollapsibleTrigger>
+            <Button variant="secondary" onClick={() => setDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Bill
+            </Button>
+          </div>
+        </div>
+        <CollapsibleContent>
       <div className="grid gap-4">
         {bills.map((bill) => (
           <Card key={bill.id} className="border-2 hover:shadow-card-hover transition-smooth">
@@ -1296,6 +1414,8 @@ const Bills = () => {
           );
         })}
       </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Add/Edit Bill Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => {
