@@ -44,6 +44,7 @@ const Bills = () => {
   const [dismissedSlots, setDismissedSlots] = useState<Set<number>>(new Set());
   const [calendarsOpen, setCalendarsOpen] = useState(false);
   const [billsListOpen, setBillsListOpen] = useState(true);
+  const [billsSummaryOpen, setBillsSummaryOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -678,10 +679,9 @@ const Bills = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      {/* Today Banner */}
+      {/* Page Title */}
       <div className="text-center py-2">
-        <p className="text-sm text-muted-foreground">Today</p>
-        <p className="text-lg font-semibold">{new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: resolvedTz }).format(new Date())}</p>
+        <h1 className="text-2xl font-bold">My Bills Tab</h1>
       </div>
 
       {/* Scoreboard */}
@@ -731,6 +731,11 @@ const Bills = () => {
           </CollapsibleTrigger>
         </div>
         <CollapsibleContent>
+          {/* Today Banner */}
+          <div className="text-center py-2 mb-4">
+            <p className="text-sm text-muted-foreground">Today</p>
+            <p className="text-lg font-semibold">{new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: resolvedTz }).format(new Date())}</p>
+          </div>
       <style>{`
         .rdp .rdp-nav,
         .rdp button.rdp-nav_button_previous,
@@ -752,13 +757,13 @@ const Bills = () => {
           border-radius: 0.5rem !important;
         }
         
-        .rdp button.rdp-day.rdp-day_today:not([class*="cal-"]):not([class*="bills-past"]) {
-          background-color: #E3F2FD !important;
-          color: #1565C0 !important;
+        .rdp button.rdp-day.rdp-day_today:not([class*="cal-"]):not([class*="bills-past"]):not([style*="background-color"]) {
+          background-color: #FEF9E7 !important;
+          color: #856404 !important;
           font-weight: 600 !important;
-          border: 2px solid #2196F3 !important;
+          border: 2px solid #F59E0B !important;
           border-radius: 0.5rem !important;
-          box-shadow: 0 1px 3px rgba(33, 150, 243, 0.2) !important;
+          box-shadow: 0 1px 3px rgba(245, 158, 11, 0.2) !important;
         }
         
         .rdp button.rdp-day[class*="bills-past"] {
@@ -768,6 +773,28 @@ const Bills = () => {
           border-radius: 0.5rem !important;
           border: 2px dashed #9E9E9E !important;
           opacity: 0.8 !important;
+        }
+        
+        /* Date range highlighting for This Month */
+        .rdp button.rdp-day.date-before-today:not([class*="cal-"]):not([class*="bills-past"]) {
+          background-color: #E5E5E5 !important;
+          color: #757575 !important;
+        }
+        
+        .rdp button.rdp-day.date-today-to-paycheck:not([class*="cal-"]):not([class*="bills-past"]) {
+          background-color: #FEF9E7 !important;
+          color: #856404 !important;
+        }
+        
+        .rdp button.rdp-day.date-after-paycheck:not([class*="cal-"]):not([class*="bills-past"]) {
+          background-color: #F5F5F5 !important;
+          color: #757575 !important;
+        }
+        
+        /* All dates in Next Month calendar */
+        .rdp button.rdp-day.next-month-date:not([class*="cal-"]):not([class*="bills-past"]) {
+          background-color: #F5F5F5 !important;
+          color: #757575 !important;
         }
         
         ${bills
@@ -910,6 +937,57 @@ const Bills = () => {
                     startOfDay(date).getTime() === startOfDay(nextPaycheckDate).getTime() &&
                     isSameMonth(date, thisMonth);
 
+                  // Determine date range for highlighting
+                  const today = startOfToday();
+                  const dateOnly = startOfDay(date);
+                  let backgroundColor = "";
+                  let textColor = "";
+                  
+                  // Check if date is from previous month (before this month)
+                  const dateMonth = date.getMonth();
+                  const dateYear = date.getFullYear();
+                  const thisMonthNum = thisMonth.getMonth();
+                  const thisYearNum = thisMonth.getFullYear();
+                  
+                  const isPreviousMonth = dateYear < thisYearNum || 
+                    (dateYear === thisYearNum && dateMonth < thisMonthNum);
+                  
+                  // Check if date is from next month (after this month)
+                  const isNextMonth = dateYear > thisYearNum || 
+                    (dateYear === thisYearNum && dateMonth > thisMonthNum);
+                  
+                  if (isPreviousMonth) {
+                    // Dates from previous month - gray background
+                    backgroundColor = "#E5E5E5";
+                    textColor = "#757575";
+                  } else if (isNextMonth) {
+                    // Dates from next month - light gray background
+                    backgroundColor = "#F5F5F5";
+                    textColor = "#757575";
+                  } else if (isSameMonth(date, thisMonth)) {
+                    // Dates in current month
+                    if (dateOnly < today) {
+                      // Before today (gray) - not including today
+                      backgroundColor = "#E5E5E5";
+                      textColor = "#757575";
+                    } else if (nextPaycheckDate) {
+                      const paycheckDate = startOfDay(nextPaycheckDate);
+                      if (dateOnly <= paycheckDate) {
+                        // Today to paycheck (light yellow) - including today and paycheck
+                        backgroundColor = "#FEF9E7";
+                        textColor = "#856404";
+                      } else {
+                        // After paycheck (light gray)
+                        backgroundColor = "#F5F5F5";
+                        textColor = "#757575";
+                      }
+                    } else {
+                      // No paycheck date - all future dates are light gray
+                      backgroundColor = "#F5F5F5";
+                      textColor = "#757575";
+                    }
+                  }
+
                   const { displayMonth: _, ...restProps } = props;
                   const buttonProps: any = { ...restProps };
                   
@@ -1016,38 +1094,48 @@ const Bills = () => {
                     );
                   }
                   
-                  const isDateToday = isSameMonth(date, thisMonth) && isToday(date);
-                  if (isDateToday && billsOnDate.length === 0) {
-                    buttonProps.style = {
-                      backgroundColor: '#E3F2FD',
-                      color: '#1565C0',
-                      fontWeight: '600',
-                      border: '2px solid #2196F3',
-                      borderRadius: '0.25rem',
+                  // Apply background colors for dates without bills
+                  if (billsOnDate.length === 0) {
+                    const isDateToday = isSameMonth(date, thisMonth) && isToday(date);
+                    // Build style object, ensuring backgroundColor comes after props.style
+                    const baseStyle = {
                       width: '100%',
                       height: '100%',
-                      minWidth: '100%',
-                      minHeight: '100%',
                       padding: '0',
                       margin: '0',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 1px 3px rgba(33, 150, 243, 0.2)',
                       ...props.style,
                     };
-                  }
-                  
-                  if (!buttonProps.style) {
-                    buttonProps.style = {
-                      width: '100%',
-                      height: '100%',
-                      padding: '0',
-                      margin: '0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    };
+                    
+                    // Apply background color after props.style to ensure it takes precedence
+                    if (backgroundColor) {
+                      baseStyle.backgroundColor = backgroundColor;
+                      baseStyle.color = textColor;
+                    }
+                    
+                    // Apply today styling if needed
+                    if (isDateToday) {
+                      baseStyle.border = '2px solid #F59E0B';
+                      baseStyle.fontWeight = '600';
+                      baseStyle.boxShadow = '0 1px 3px rgba(245, 158, 11, 0.2)';
+                    }
+                    
+                    buttonProps.style = baseStyle;
+                  } else {
+                    // For dates with bills, ensure base styles are set
+                    if (!buttonProps.style) {
+                      buttonProps.style = {
+                        width: '100%',
+                        height: '100%',
+                        padding: '0',
+                        margin: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      };
+                    }
                   }
                   
                   buttonProps.className = cn(className, props.className);
@@ -1090,6 +1178,16 @@ const Bills = () => {
                     isSameMonth(date, nextMonth);
                   
                   const billsOnDate = billInfoByDate.get(dateKeyWithNext) || [];
+                  
+                  // Determine background color for Next Month calendar
+                  // All dates in Next Month calendar should be light gray (regardless of which month they're from)
+                  let nextMonthBackgroundColor = "";
+                  let nextMonthTextColor = "";
+                  
+                  // For Next Month calendar, all dates (previous month, current month, or future month) get light gray
+                  // This creates a consistent "future/upcoming" visual
+                  nextMonthBackgroundColor = "#F5F5F5";
+                  nextMonthTextColor = "#757575";
                   
                   const { displayMonth: _, ...restProps } = props;
                   const buttonProps: any = { ...restProps };
@@ -1199,38 +1297,48 @@ const Bills = () => {
                     );
                   }
                   
-                  const isDateToday = isSameMonth(date, nextMonth) && isToday(date);
-                  if (isDateToday && billsOnDate.length === 0) {
-                    buttonProps.style = {
-                      backgroundColor: '#E3F2FD',
-                      color: '#1565C0',
-                      fontWeight: '600',
-                      border: '2px solid #2196F3',
-                      borderRadius: '0.25rem',
+                  // Apply background colors for dates without bills in Next Month
+                  if (billsOnDate.length === 0) {
+                    const isDateToday = isSameMonth(date, nextMonth) && isToday(date);
+                    // Build style object, ensuring backgroundColor comes after props.style
+                    const baseStyle = {
                       width: '100%',
                       height: '100%',
-                      minWidth: '100%',
-                      minHeight: '100%',
                       padding: '0',
                       margin: '0',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 1px 3px rgba(33, 150, 243, 0.2)',
                       ...props.style,
                     };
-                  }
-                  
-                  if (!buttonProps.style) {
-                    buttonProps.style = {
-                      width: '100%',
-                      height: '100%',
-                      padding: '0',
-                      margin: '0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    };
+                    
+                    // Apply background color after props.style to ensure it takes precedence
+                    if (nextMonthBackgroundColor) {
+                      baseStyle.backgroundColor = nextMonthBackgroundColor;
+                      baseStyle.color = nextMonthTextColor;
+                    }
+                    
+                    // Apply today styling if needed
+                    if (isDateToday) {
+                      baseStyle.border = '2px solid #9E9E9E';
+                      baseStyle.fontWeight = '600';
+                      baseStyle.boxShadow = '0 1px 3px rgba(158, 158, 158, 0.2)';
+                    }
+                    
+                    buttonProps.style = baseStyle;
+                  } else {
+                    // For dates with bills, ensure base styles are set
+                    if (!buttonProps.style) {
+                      buttonProps.style = {
+                        width: '100%',
+                        height: '100%',
+                        padding: '0',
+                        margin: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      };
+                    }
                   }
                   
                   buttonProps.className = cn(className, props.className);
@@ -1245,7 +1353,27 @@ const Bills = () => {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Bills Summary by Category */}
+      {/* Bills Summary by Category - Collapsible */}
+      <Collapsible open={billsSummaryOpen} onOpenChange={setBillsSummaryOpen}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Bills Summary</h2>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" size="sm">
+              {billsSummaryOpen ? (
+                <>
+                  <ChevronUp className="w-4 h-4 mr-2" />
+                  Hide Summary
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4 mr-2" />
+                  Show Summary
+                </>
+              )}
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent>
       <Card className="border-2">
         <CardHeader>
           <CardTitle>Bills Summary</CardTitle>
@@ -1305,6 +1433,8 @@ const Bills = () => {
           </div>
         </CardContent>
       </Card>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Bills List */}
       <Collapsible open={billsListOpen} onOpenChange={setBillsListOpen}>
