@@ -25,7 +25,7 @@ import {
   type CoasterItem,
   type Bill,
 } from "@/lib/calculations";
-import { format } from "date-fns";
+import { format, startOfToday, isPast, isToday } from "date-fns";
 import { CheckCircle2, Clock, Wallet, CreditCard } from "lucide-react";
 
 // Reusable Info Tooltip Component (clickable for mobile and desktop)
@@ -303,6 +303,13 @@ const Survivor = () => {
     return coasterItems.filter(item => item.bank_account_id === accountId);
   };
 
+  // Helper function to check if an expense is active (today or future)
+  const isActiveExpense = (expense: CoasterItem) => {
+    const itemDate = new Date(expense.expense_date);
+    itemDate.setHours(0, 0, 0, 0);
+    return !isPast(itemDate) || isToday(itemDate);
+  };
+
   const toggleCloseOutAccountExpanded = (accountId: string) => {
     const newExpanded = new Set(expandedCloseOutAccounts);
     if (newExpanded.has(accountId)) {
@@ -436,29 +443,40 @@ const Survivor = () => {
                 </div>
                 {coastingExpensesExpanded && coastingExpenses.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
-                    {coastingExpenses.map((expense) => (
-                      <div 
-                        key={expense.id} 
-                        className="text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800"
-                      >
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-medium truncate flex-1 mr-2 text-foreground">
-                            {expense.name}
-                          </span>
-                          <span className={cn(
-                            "font-bold whitespace-nowrap",
-                            accountData.isBankAccount 
-                              ? "text-red-600 dark:text-red-400" 
-                              : "text-blue-600 dark:text-blue-400"
-                          )}>
-                            {formatCurrency(Number(expense.amount))}
-                          </span>
+                    {coastingExpenses.map((expense) => {
+                      const isPastExpense = !isActiveExpense(expense);
+                      return (
+                        <div 
+                          key={expense.id} 
+                          className={cn(
+                            "text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800",
+                            isPastExpense && "opacity-60"
+                          )}
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <span className={cn(
+                              "font-medium truncate flex-1 mr-2",
+                              isPastExpense ? "text-muted-foreground" : "text-foreground"
+                            )}>
+                              {expense.name}
+                            </span>
+                            <span className={cn(
+                              "font-bold whitespace-nowrap",
+                              isPastExpense 
+                                ? "text-muted-foreground" 
+                                : accountData.isBankAccount 
+                                  ? "text-red-600 dark:text-red-400" 
+                                  : "text-blue-600 dark:text-blue-400"
+                            )}>
+                              {formatCurrency(Number(expense.amount))}
+                            </span>
+                          </div>
+                          <div className="text-muted-foreground text-[10px]">
+                            {format(new Date(expense.expense_date), "MMM d, yyyy")}
+                          </div>
                         </div>
-                        <div className="text-muted-foreground text-[10px]">
-                          {format(new Date(expense.expense_date), "MMM d, yyyy")}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -731,20 +749,29 @@ const Survivor = () => {
                     const account = bankAccounts.find(acc => acc.id === expense.bank_account_id);
                     const accountType = account?.account_type?.toLowerCase() || '';
                     const isBankAcc = ['checking', 'savings', 'digital_wallet'].includes(accountType);
+                    const isPastExpense = !isActiveExpense(expense);
                     return (
                       <div 
                         key={expense.id} 
-                        className="text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800"
+                        className={cn(
+                          "text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800",
+                          isPastExpense && "opacity-60"
+                        )}
                       >
                         <div className="flex justify-between items-start mb-1">
-                          <span className="font-medium truncate flex-1 mr-2 text-foreground">
+                          <span className={cn(
+                            "font-medium truncate flex-1 mr-2",
+                            isPastExpense ? "text-muted-foreground" : "text-foreground"
+                          )}>
                             {expense.name}
                           </span>
                           <span className={cn(
                             "font-bold whitespace-nowrap",
-                            isBankAcc 
-                              ? "text-red-600 dark:text-red-400" 
-                              : "text-blue-600 dark:text-blue-400"
+                            isPastExpense 
+                              ? "text-muted-foreground" 
+                              : isBankAcc 
+                                ? "text-red-600 dark:text-red-400" 
+                                : "text-blue-600 dark:text-blue-400"
                           )}>
                             {formatCurrency(Number(expense.amount))}
                           </span>
