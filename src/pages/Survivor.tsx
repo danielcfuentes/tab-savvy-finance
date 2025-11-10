@@ -26,7 +26,7 @@ import {
   type Bill,
 } from "@/lib/calculations";
 import { format } from "date-fns";
-import { CheckCircle2, Clock } from "lucide-react";
+import { CheckCircle2, Clock, Wallet, CreditCard } from "lucide-react";
 
 // Reusable Info Tooltip Component (clickable for mobile and desktop)
 const InfoTooltip = ({ content, children }: { content: string; children?: React.ReactNode }) => {
@@ -71,6 +71,7 @@ const Survivor = () => {
   const [expandedCloseOutAccounts, setExpandedCloseOutAccounts] = useState<Set<string>>(new Set());
   const [expandedBillsToClose, setExpandedBillsToClose] = useState<Set<string>>(new Set());
   const [expandedOpenBills, setExpandedOpenBills] = useState<Set<string>>(new Set());
+  const [expandedCoastingExpenses, setExpandedCoastingExpenses] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -163,23 +164,72 @@ const Survivor = () => {
     };
   });
 
+  // Separate accounts by type for Close Out
+  const bankAccountsCloseOut = bankAccounts.filter(acc => 
+    ['checking', 'savings', 'digital_wallet'].includes(acc.account_type?.toLowerCase() || '')
+  );
+  const creditAccountsCloseOut = bankAccounts.filter(acc => 
+    ['credit_card', 'loan'].includes(acc.account_type?.toLowerCase() || '')
+  );
+
   // Calculate per-account values for Close Out
   const closeOutAccountData = accountIds.map(accountId => {
     const account = bankAccounts.find(acc => acc.id === accountId);
-    const accountRealBalance = getClosingTabPerAccount(bankAccounts, coasterItems, accountId);
+    if (!account) {
+      return {
+        id: accountId,
+        name: "Unknown Account",
+        accountType: "",
+        bankBalance: 0,
+        coastingExpenses: 0,
+        realBalance: 0,
+        billsToClose: 0,
+        closedTab: 0,
+        openBills: 0,
+        isBankAccount: false,
+        isCreditAccount: false,
+      };
+    }
+    
+    const accountType = account.account_type?.toLowerCase() || '';
+    const isBankAccount = ['checking', 'savings', 'digital_wallet'].includes(accountType);
+    const isCreditAccount = ['credit_card', 'loan'].includes(accountType);
+    
+    // Calculate bank balance
+    const bankBalance = Number(account.balance);
+    
+    // Calculate coasting expenses for this account
+    const accountCoastingExpenses = coasterItems
+      .filter(item => item.bank_account_id === accountId)
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+    
+    // Calculate real balance
+    const accountRealBalance = isBankAccount 
+      ? bankBalance - accountCoastingExpenses
+      : bankBalance + accountCoastingExpenses;
+    
     const billsToClose = getBillsToClosePerAccount(bills, nextPaycheckDate, accountId);
     const closedTab = accountRealBalance - billsToClose;
     const openBills = getOpenBillsPerAccount(bills, nextPaycheckDate, accountId);
     
     return {
       id: accountId,
-      name: account?.name || "Unknown Account",
+      name: account.name,
+      accountType,
+      isBankAccount,
+      isCreditAccount,
+      bankBalance,
+      coastingExpenses: accountCoastingExpenses,
       realBalance: accountRealBalance,
       billsToClose,
       closedTab,
       openBills,
     };
   });
+
+  // Separate close out data by account type
+  const bankAccountsCloseOutData = closeOutAccountData.filter(acc => acc.isBankAccount);
+  const creditAccountsCloseOutData = closeOutAccountData.filter(acc => acc.isCreditAccount);
 
   // Calculate totals for End of Month (Abek Tab)
   const totalClosingTab = accountData.reduce((sum, acc) => sum + acc.closingTab, 0);
@@ -190,11 +240,26 @@ const Survivor = () => {
   const survivorTab = totalClosingTab - totalOpenBills + totalNextPaycheck - totalCoastingEst;
   const monthsCovered = getMonthsCovered(survivorTab, fullMonthRanges.totals.total);
 
-  // Calculate totals for Close Out
-  const totalRealBalance = closeOutAccountData.reduce((sum, acc) => sum + acc.realBalance, 0);
-  const totalBillsToClose = closeOutAccountData.reduce((sum, acc) => sum + acc.billsToClose, 0);
-  const totalClosedTab = closeOutAccountData.reduce((sum, acc) => sum + acc.closedTab, 0);
-  const totalOpenBillsCloseOut = closeOutAccountData.reduce((sum, acc) => sum + acc.openBills, 0);
+  // Calculate unallocated expenses (for bank accounts)
+  const unallocatedExpenses = coasterItems
+    .filter(item => !item.bank_account_id)
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+
+  // Calculate totals for Close Out - Bank Accounts (My Tab)
+  const totalBankBalance = bankAccountsCloseOutData.reduce((sum, acc) => sum + acc.bankBalance, 0);
+  const totalBankCoastingExpenses = bankAccountsCloseOutData.reduce((sum, acc) => sum + acc.coastingExpenses, 0) + unallocatedExpenses;
+  const totalRealBankBalance = totalBankBalance - totalBankCoastingExpenses;
+  const totalBankBillsToClose = bankAccountsCloseOutData.reduce((sum, acc) => sum + acc.billsToClose, 0);
+  const totalBankClosedTab = bankAccountsCloseOutData.reduce((sum, acc) => sum + acc.closedTab, 0);
+  const totalBankOpenBills = bankAccountsCloseOutData.reduce((sum, acc) => sum + acc.openBills, 0);
+
+  // Calculate totals for Close Out - Credit Accounts (My Credit Tab)
+  const totalCreditBalance = creditAccountsCloseOutData.reduce((sum, acc) => sum + acc.bankBalance, 0);
+  const totalCreditCoastingExpenses = creditAccountsCloseOutData.reduce((sum, acc) => sum + acc.coastingExpenses, 0);
+  const totalRealCreditBalance = totalCreditBalance + totalCreditCoastingExpenses;
+  const totalCreditBillsToClose = creditAccountsCloseOutData.reduce((sum, acc) => sum + acc.billsToClose, 0);
+  const totalCreditClosedTab = creditAccountsCloseOutData.reduce((sum, acc) => sum + acc.closedTab, 0);
+  const totalCreditOpenBills = creditAccountsCloseOutData.reduce((sum, acc) => sum + acc.openBills, 0);
 
   // Budget calculations - group bills by category
   const budgetByCategory = bills.reduce((acc, bill) => {
@@ -215,7 +280,7 @@ const Survivor = () => {
   const totalBudget = Object.values(budgetByCategory).reduce((sum, cat) => sum + cat.total, 0);
   const coasterTab = totalIncome - totalBudget;
 
-  // Helper functions for Close Out bills
+  // Helper functions for Close Out bills and expenses
   const getBillsToCloseForAccount = (accountId: string) => {
     if (!nextPaycheckDate) return [];
     return bills.filter(bill => {
@@ -232,6 +297,10 @@ const Survivor = () => {
       billDate.setHours(0, 0, 0, 0);
       return bill.bank_account_id === accountId && billDate >= nextPaycheckDate;
     });
+  };
+
+  const getCoastingExpensesForAccount = (accountId: string) => {
+    return coasterItems.filter(item => item.bank_account_id === accountId);
   };
 
   const toggleCloseOutAccountExpanded = (accountId: string) => {
@@ -264,25 +333,44 @@ const Survivor = () => {
     setExpandedOpenBills(newExpanded);
   };
 
+  const toggleCoastingExpensesExpanded = (accountId: string) => {
+    const newExpanded = new Set(expandedCoastingExpenses);
+    if (newExpanded.has(accountId)) {
+      newExpanded.delete(accountId);
+    } else {
+      newExpanded.add(accountId);
+    }
+    setExpandedCoastingExpenses(newExpanded);
+  };
+
   // Render Close Out account card
   const renderCloseOutAccountCard = (accountData: typeof closeOutAccountData[0]) => {
     const isExpanded = expandedCloseOutAccounts.has(accountData.id);
     const billsToClose = getBillsToCloseForAccount(accountData.id);
     const openBills = getOpenBillsForAccount(accountData.id);
+    const coastingExpenses = getCoastingExpensesForAccount(accountData.id);
     const billsToCloseExpanded = expandedBillsToClose.has(accountData.id);
     const openBillsExpanded = expandedOpenBills.has(accountData.id);
+    const coastingExpensesExpanded = expandedCoastingExpenses.has(accountData.id);
+
+    const headerColor = accountData.isBankAccount 
+      ? "bg-gradient-to-br from-green-400 to-green-500 dark:from-green-500 dark:to-green-600"
+      : "bg-gradient-to-br from-pink-300 to-pink-400 dark:from-pink-400 dark:to-pink-500";
+    const ringColor = accountData.isBankAccount 
+      ? "ring-green-200 dark:ring-green-800"
+      : "ring-pink-200 dark:ring-pink-800";
 
     return (
       <Card 
         key={accountData.id} 
         className={cn(
           "border-2 shadow-lg hover:shadow-xl transition-all duration-200",
-          isExpanded && "ring-2 ring-green-200 dark:ring-green-800"
+          isExpanded && `ring-2 ${ringColor}`
         )}
       >
         <CardHeader 
           className={cn(
-            "bg-gradient-to-br from-green-400 to-green-500 dark:from-green-500 dark:to-green-600",
+            headerColor,
             "pb-3 px-4 pt-4 cursor-pointer transition-all duration-200 group"
           )}
           onClick={() => toggleCloseOutAccountExpanded(accountData.id)}
@@ -303,18 +391,95 @@ const Survivor = () => {
         {isExpanded && (
           <CardContent className="p-0 animate-in slide-in-from-top-2 duration-200">
             <div className="divide-y divide-border">
-              {/* Real Balance */}
+              {/* Bank Balance */}
               <div className="p-4 bg-gradient-to-br from-muted/40 to-muted/20">
                 <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                  Real Balance
+                  {accountData.isBankAccount ? "Bank Balance" : accountData.isCreditAccount ? "Credit Balance" : "Balance"}
+                </p>
+                <p className="text-xl md:text-2xl font-bold text-foreground">
+                  {formatCurrency(accountData.bankBalance)}
+                </p>
+              </div>
+
+              {/* Coasting Expenses */}
+              <div 
+                className="p-4 bg-gradient-to-br from-yellow-50/80 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10 cursor-pointer hover:from-yellow-100 dark:hover:from-yellow-900/30 transition-all duration-200 group"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleCoastingExpensesExpanded(accountData.id);
+                }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                      Coasting Expenses
+                    </p>
+                    <p className={cn(
+                      "text-base md:text-lg font-bold",
+                      accountData.isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
+                    )}>
+                      {accountData.coastingExpenses > 0 
+                        ? (accountData.isBankAccount ? `(${formatCurrency(accountData.coastingExpenses)})` : `+${formatCurrency(accountData.coastingExpenses)}`)
+                        : '-'
+                      }
+                    </p>
+                  </div>
+                  {coastingExpenses.length > 0 && (
+                    <div className="mt-1 transition-transform duration-200 group-hover:scale-110">
+                      {coastingExpensesExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      )}
+                    </div>
+                  )}
+                </div>
+                {coastingExpensesExpanded && coastingExpenses.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
+                    {coastingExpenses.map((expense) => (
+                      <div 
+                        key={expense.id} 
+                        className="text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800"
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-medium truncate flex-1 mr-2 text-foreground">
+                            {expense.name}
+                          </span>
+                          <span className={cn(
+                            "font-bold whitespace-nowrap",
+                            accountData.isBankAccount 
+                              ? "text-red-600 dark:text-red-400" 
+                              : "text-blue-600 dark:text-blue-400"
+                          )}>
+                            {formatCurrency(Number(expense.amount))}
+                          </span>
+                        </div>
+                        <div className="text-muted-foreground text-[10px]">
+                          {format(new Date(expense.expense_date), "MMM d, yyyy")}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Real Balance */}
+              <div className={cn(
+                "p-4 bg-gradient-to-br",
+                accountData.realBalance >= 0 && accountData.isBankAccount
+                  ? "from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10" 
+                  : "from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10"
+              )}>
+                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                  {accountData.isBankAccount ? "Real Balance" : accountData.isCreditAccount ? "Real Credit Balance" : "Real Balance"}
                 </p>
                 <p className={cn(
                   "text-xl md:text-2xl font-bold",
-                  accountData.realBalance < 0 
-                    ? "text-red-600 dark:text-red-400" 
-                    : "text-foreground"
+                  accountData.realBalance >= 0 && accountData.isBankAccount 
+                    ? "text-green-600 dark:text-green-400" 
+                    : "text-red-600 dark:text-red-400"
                 )}>
-                  {formatCurrencyWithSign(accountData.realBalance)}
+                  ${formatCurrency(Math.abs(accountData.realBalance))}
                 </p>
               </div>
 
@@ -456,41 +621,161 @@ const Survivor = () => {
   };
 
   // Render Total Tab for Close Out
-  const renderCloseOutTotalTab = () => {
+  const renderCloseOutTotalTab = (isBankAccount: boolean) => {
+    const accountData = isBankAccount ? bankAccountsCloseOutData : creditAccountsCloseOutData;
+    const totalBalance = isBankAccount ? totalBankBalance : totalCreditBalance;
+    const totalCoastingExp = isBankAccount ? totalBankCoastingExpenses : totalCreditCoastingExpenses;
+    const totalRealBal = isBankAccount ? totalRealBankBalance : totalRealCreditBalance;
+    const totalBillsToClose = isBankAccount ? totalBankBillsToClose : totalCreditBillsToClose;
+    const totalClosedTab = isBankAccount ? totalBankClosedTab : totalCreditClosedTab;
+    const totalOpenBills = isBankAccount ? totalBankOpenBills : totalCreditOpenBills;
+
     const allBillsToClose = bills.filter(bill => {
       if (!nextPaycheckDate) return false;
       const billDate = new Date(bill.payment_date);
       billDate.setHours(0, 0, 0, 0);
-      return billDate < nextPaycheckDate;
+      if (billDate >= nextPaycheckDate) return false;
+      const account = bankAccounts.find(acc => acc.id === bill.bank_account_id);
+      if (!account) return false;
+      const accountType = account.account_type?.toLowerCase() || '';
+      return isBankAccount 
+        ? ['checking', 'savings', 'digital_wallet'].includes(accountType)
+        : ['credit_card', 'loan'].includes(accountType);
     });
     const allOpenBills = bills.filter(bill => {
       if (!nextPaycheckDate) return true;
       const billDate = new Date(bill.payment_date);
       billDate.setHours(0, 0, 0, 0);
-      return billDate >= nextPaycheckDate;
+      if (billDate < nextPaycheckDate) return false;
+      const account = bankAccounts.find(acc => acc.id === bill.bank_account_id);
+      if (!account) return false;
+      const accountType = account.account_type?.toLowerCase() || '';
+      return isBankAccount 
+        ? ['checking', 'savings', 'digital_wallet'].includes(accountType)
+        : ['credit_card', 'loan'].includes(accountType);
     });
-    const totalBillsToCloseExpanded = expandedBillsToClose.has("total");
-    const totalOpenBillsExpanded = expandedOpenBills.has("total");
+    const allCoastingExpenses = coasterItems.filter(item => {
+      if (!item.bank_account_id) return isBankAccount; // Unallocated goes to bank accounts
+      const account = bankAccounts.find(acc => acc.id === item.bank_account_id);
+      if (!account) return false;
+      const accountType = account.account_type?.toLowerCase() || '';
+      return isBankAccount 
+        ? ['checking', 'savings', 'digital_wallet'].includes(accountType)
+        : ['credit_card', 'loan'].includes(accountType);
+    });
+    const totalBillsToCloseExpanded = expandedBillsToClose.has(isBankAccount ? "total-bank" : "total-credit");
+    const totalOpenBillsExpanded = expandedOpenBills.has(isBankAccount ? "total-bank" : "total-credit");
+    const totalCoastingExpensesExpanded = expandedCoastingExpenses.has(isBankAccount ? "total-bank" : "total-credit");
+
+    const headerColor = isBankAccount
+      ? "bg-gradient-to-br from-green-600 to-green-700 dark:from-green-700 dark:to-green-800"
+      : "bg-gradient-to-br from-pink-500 to-pink-600 dark:from-pink-600 dark:to-pink-700";
 
     return (
       <Card className="border-2 shadow-lg hover:shadow-xl transition-shadow">
-        <CardHeader className="bg-gradient-to-br from-green-600 to-green-700 dark:from-green-700 dark:to-green-800 pb-3 px-4 pt-4">
+        <CardHeader className={cn(headerColor, "pb-3 px-4 pt-4")}>
           <CardTitle className="text-white text-base font-bold">Total Tab</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-border">
-            {/* Real Balance */}
+            {/* Bank/Credit Balance */}
             <div className="p-4 bg-gradient-to-br from-muted/40 to-muted/20">
               <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                Real Balance
+                {isBankAccount ? "Bank Balance" : "Credit Balance"}
+              </p>
+              <p className="text-xl md:text-2xl font-bold text-foreground">
+                {formatCurrency(totalBalance)}
+              </p>
+            </div>
+
+            {/* Coasting Expenses */}
+            <div 
+              className="p-4 bg-gradient-to-br from-yellow-50/80 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10 cursor-pointer hover:from-yellow-100 dark:hover:from-yellow-900/30 transition-all duration-200 group"
+              onClick={() => {
+                const newExpanded = new Set(expandedCoastingExpenses);
+                const key = isBankAccount ? "total-bank" : "total-credit";
+                if (newExpanded.has(key)) {
+                  newExpanded.delete(key);
+                } else {
+                  newExpanded.add(key);
+                }
+                setExpandedCoastingExpenses(newExpanded);
+              }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                    Coasting Expenses
+                  </p>
+                  <p className={cn(
+                    "text-base md:text-lg font-bold",
+                    isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
+                  )}>
+                    {totalCoastingExp > 0 
+                      ? (isBankAccount ? `(${formatCurrency(totalCoastingExp)})` : `+${formatCurrency(totalCoastingExp)}`)
+                      : '-'
+                    }
+                  </p>
+                </div>
+                <div className="mt-1 transition-transform duration-200 group-hover:scale-110">
+                  {totalCoastingExpensesExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </div>
+              </div>
+              {totalCoastingExpensesExpanded && allCoastingExpenses.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
+                  {allCoastingExpenses.map((expense) => {
+                    const account = bankAccounts.find(acc => acc.id === expense.bank_account_id);
+                    const accountType = account?.account_type?.toLowerCase() || '';
+                    const isBankAcc = ['checking', 'savings', 'digital_wallet'].includes(accountType);
+                    return (
+                      <div 
+                        key={expense.id} 
+                        className="text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800"
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-medium truncate flex-1 mr-2 text-foreground">
+                            {expense.name}
+                          </span>
+                          <span className={cn(
+                            "font-bold whitespace-nowrap",
+                            isBankAcc 
+                              ? "text-red-600 dark:text-red-400" 
+                              : "text-blue-600 dark:text-blue-400"
+                          )}>
+                            {formatCurrency(Number(expense.amount))}
+                          </span>
+                        </div>
+                        <div className="text-muted-foreground text-[10px]">
+                          {format(new Date(expense.expense_date), "MMM d, yyyy")}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Real Balance */}
+            <div className={cn(
+              "p-4 bg-gradient-to-br",
+              totalRealBal >= 0 && isBankAccount
+                ? "from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10" 
+                : "from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10"
+            )}>
+              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                {isBankAccount ? "Real Balance" : "Real Credit Balance"}
               </p>
               <p className={cn(
                 "text-xl md:text-2xl font-bold",
-                totalRealBalance < 0 
-                  ? "text-red-600 dark:text-red-400" 
-                  : "text-foreground"
+                totalRealBal >= 0 && isBankAccount 
+                  ? "text-green-600 dark:text-green-400" 
+                  : "text-red-600 dark:text-red-400"
               )}>
-                {formatCurrencyWithSign(totalRealBalance)}
+                ${formatCurrency(Math.abs(totalRealBal))}
               </p>
             </div>
 
@@ -499,10 +784,11 @@ const Survivor = () => {
               className="p-4 bg-gradient-to-br from-yellow-50/80 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10 cursor-pointer hover:from-yellow-100 dark:hover:from-yellow-900/30 transition-all duration-200 group"
               onClick={() => {
                 const newExpanded = new Set(expandedBillsToClose);
-                if (newExpanded.has("total")) {
-                  newExpanded.delete("total");
+                const key = isBankAccount ? "total-bank" : "total-credit";
+                if (newExpanded.has(key)) {
+                  newExpanded.delete(key);
                 } else {
-                  newExpanded.add("total");
+                  newExpanded.add(key);
                 }
                 setExpandedBillsToClose(newExpanded);
               }}
@@ -554,7 +840,7 @@ const Survivor = () => {
             {/* Closed Tab */}
             <div className={cn(
               "p-4 bg-gradient-to-br",
-              totalClosedTab >= 0
+              totalClosedTab >= 0 && isBankAccount
                 ? "from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10" 
                 : "from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10"
             )}>
@@ -563,7 +849,7 @@ const Survivor = () => {
               </p>
               <p className={cn(
                 "text-xl md:text-2xl font-bold",
-                totalClosedTab >= 0 
+                totalClosedTab >= 0 && isBankAccount
                   ? "text-green-600 dark:text-green-400" 
                   : "text-red-600 dark:text-red-400"
               )}>
@@ -576,10 +862,11 @@ const Survivor = () => {
               className="p-4 bg-gradient-to-br from-yellow-50/80 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10 cursor-pointer hover:from-yellow-100 dark:hover:from-yellow-900/30 transition-all duration-200 group"
               onClick={() => {
                 const newExpanded = new Set(expandedOpenBills);
-                if (newExpanded.has("total")) {
-                  newExpanded.delete("total");
+                const key = isBankAccount ? "total-bank" : "total-credit";
+                if (newExpanded.has(key)) {
+                  newExpanded.delete(key);
                 } else {
-                  newExpanded.add("total");
+                  newExpanded.add(key);
                 }
                 setExpandedOpenBills(newExpanded);
               }}
@@ -590,21 +877,21 @@ const Survivor = () => {
                     Open Bills
                   </p>
                   <p className="text-base md:text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                    {totalOpenBillsCloseOut > 0 
-                      ? formatCurrency(totalOpenBillsCloseOut)
+                    {totalOpenBills > 0 
+                      ? formatCurrency(totalOpenBills)
                       : '-'
                     }
                   </p>
                 </div>
                 <div className="mt-1 transition-transform duration-200 group-hover:scale-110">
-                  {expandedOpenBills.has("total") ? (
+                  {totalOpenBillsExpanded ? (
                     <ChevronDown className="w-4 h-4 text-muted-foreground" />
                   ) : (
                     <ChevronRight className="w-4 h-4 text-muted-foreground" />
                   )}
                 </div>
               </div>
-              {expandedOpenBills.has("total") && allOpenBills.length > 0 && (
+              {totalOpenBillsExpanded && allOpenBills.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
                   {allOpenBills.map((bill) => (
                     <div 
@@ -668,27 +955,69 @@ const Survivor = () => {
         </CardHeader>
         {closeOutExpanded && (
           <CardContent className="space-y-4 md:space-y-6 pt-0 p-4 md:p-6">
-            {/* Total Tab - Full Width */}
-            <div className="w-full">
-              {renderCloseOutTotalTab()}
+            {/* My Tab Section */}
+            {bankAccountsCloseOutData.length > 0 && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <Wallet className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
-                  
-            {/* Individual Account Cards - Responsive Grid */}
-            {closeOutAccountData.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {closeOutAccountData.map((accountData) => renderCloseOutAccountCard(accountData))}
-                                </div>
-                              )}
+                  <h2 className="text-2xl md:text-3xl font-bold">My Tab</h2>
+                </div>
+
+                {/* Total Tab - Full Width */}
+                <div className="w-full">
+                  {renderCloseOutTotalTab(true)}
+                </div>
+
+                {/* Individual Bank Accounts - Responsive Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {bankAccountsCloseOutData.map((accountData) => renderCloseOutAccountCard(accountData))}
+                </div>
+
+                {unallocatedExpenses > 0 && (
+                  <Card className="border-2 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-semibold text-amber-900 dark:text-amber-200">Note:</span> ${formatCurrency(unallocatedExpenses)} in unallocated expenses included in Total Tab
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {/* My Credit Tab Section */}
+            {creditAccountsCloseOutData.length > 0 && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-lg">
+                    <CreditCard className="w-5 h-5 text-pink-600 dark:text-pink-400" />
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-bold">My Credit Tab</h2>
+                </div>
+
+                {/* Total Tab - Full Width */}
+                <div className="w-full">
+                  {renderCloseOutTotalTab(false)}
+                </div>
+
+                {/* Individual Credit Accounts - Responsive Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {creditAccountsCloseOutData.map((accountData) => renderCloseOutAccountCard(accountData))}
+                </div>
+              </div>
+            )}
 
             {/* Empty State */}
-            {closeOutAccountData.length === 0 && (
+            {bankAccountsCloseOutData.length === 0 && creditAccountsCloseOutData.length === 0 && (
               <Card className="border-2 shadow-lg">
                 <CardContent className="py-16 text-center">
                   <p className="text-muted-foreground">
                     No accounts found. Add accounts in the Bank Tab.
                   </p>
                 </CardContent>
-                          </Card>
+              </Card>
             )}
           </CardContent>
         )}
