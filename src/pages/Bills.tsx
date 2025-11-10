@@ -685,32 +685,6 @@ const Bills = () => {
         <h1 className="text-2xl font-bold">My Bills Tab</h1>
       </div>
 
-      {/* Scoreboard */}
-      <Card className="border-2">
-        <CardContent className="py-6">
-          <div className="grid grid-cols-2 gap-6">
-            {/* Top Row - Pair 1 */}
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">This Month Bills Locked In</p>
-              <p className="text-3xl font-bold text-foreground">${thisMonthBillsLockedIn.toFixed(2)}</p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Next Month Bills Locked In</p>
-              <p className="text-3xl font-bold text-foreground">${nextMonthBillsLockedIn.toFixed(2)}</p>
-            </div>
-            {/* Bottom Row - Pair 2 */}
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Bills to Close Before Next Paycheck</p>
-              <p className="text-3xl font-bold text-foreground">${billsToCloseBeforePaycheck.toFixed(2)}</p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Bills Open After Paycheck</p>
-              <p className="text-3xl font-bold text-foreground">${billsOpenAfterPaycheck.toFixed(2)}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Calendars - Collapsible */}
       <Collapsible open={calendarsOpen} onOpenChange={setCalendarsOpen}>
         <div className="flex items-center justify-between mb-4">
@@ -1376,50 +1350,19 @@ const Bills = () => {
         </div>
         <CollapsibleContent>
       <Card className="border-2">
-        <CardHeader>
-          <CardTitle>Bills Summary</CardTitle>
-          <CardDescription>Total amounts by category</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
+          {/* Column Headers */}
+          <div className="grid grid-cols-3 gap-4 pb-3 border-b mb-3">
+            <div className="font-semibold text-sm">Category</div>
+            <div className="font-semibold text-sm text-center">This Month</div>
+            <div className="font-semibold text-sm text-center">Next Month</div>
+          </div>
+
           <Accordion type="multiple" className="w-full">
             {["Rent", "Need", "Want", "Debt", "Savings", "Investment"].map((category) => {
               const categoryBills = bills.filter(b => b.category === category);
               
-              const thisMonthTotal = categoryBills
-                .filter(b => {
-                  const d = toTzDate(b.payment_date);
-                  const dNext = toTzDate(b.payment_date_next);
-                  return (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
-                })
-                .reduce((sum, b) => {
-                  const d = toTzDate(b.payment_date);
-                  const dNext = toTzDate(b.payment_date_next);
-                  if (d && isSameMonth(d, thisMonth)) {
-                    return sum + Number(b.amount_now);
-                  } else if (dNext && isSameMonth(dNext, thisMonth)) {
-                    return sum + Number(b.amount_next);
-                  }
-                  return sum;
-                }, 0);
-              
-              const nextMonthTotal = categoryBills
-                .filter(b => {
-                  const dNext = toTzDate(b.payment_date_next);
-                  const d = toTzDate(b.payment_date);
-                  return (dNext && isSameMonth(dNext, nextMonth)) || (d && isSameMonth(d, nextMonth));
-                })
-                .reduce((sum, b) => {
-                  const dNext = toTzDate(b.payment_date_next);
-                  const d = toTzDate(b.payment_date);
-                  if (dNext && isSameMonth(dNext, nextMonth)) {
-                    return sum + Number(b.amount_next);
-                  } else if (d && isSameMonth(d, nextMonth)) {
-                    return sum + Number(b.amount_next);
-                  }
-                  return sum;
-                }, 0);
-              
-              // Get bills for this month and next month to display in the dropdown
+              // Calculate This Month totals
               const billsThisMonth = categoryBills
                 .filter(b => {
                   const d = toTzDate(b.payment_date);
@@ -1430,14 +1373,36 @@ const Bills = () => {
                   const d = toTzDate(b.payment_date);
                   const dNext = toTzDate(b.payment_date_next);
                   let amount = 0;
+                  let itemDate: Date | null = null;
                   if (d && isSameMonth(d, thisMonth)) {
                     amount = Number(b.amount_now);
+                    itemDate = d;
                   } else if (dNext && isSameMonth(dNext, thisMonth)) {
                     amount = Number(b.amount_next);
+                    itemDate = dNext;
                   }
-                  return { bill: b, amount };
+                  return { bill: b, amount, itemDate };
                 });
+
+              const thisMonthTotal = billsThisMonth.reduce((sum, { amount }) => sum + amount, 0);
+
+              // Calculate Bills to Close and Bills Open for This Month
+              const billsToClose = billsThisMonth
+                .filter(({ itemDate }) => {
+                  if (!itemDate || !nextPaycheckDate) return false;
+                  return itemDate < nextPaycheckDate;
+                })
+                .reduce((sum, { amount }) => sum + amount, 0);
+
+              const billsOpen = billsThisMonth
+                .filter(({ itemDate }) => {
+                  if (!itemDate) return false;
+                  if (!nextPaycheckDate) return true;
+                  return itemDate >= nextPaycheckDate;
+                })
+                .reduce((sum, { amount }) => sum + amount, 0);
               
+              // Calculate Next Month totals
               const billsNextMonth = categoryBills
                 .filter(b => {
                   const dNext = toTzDate(b.payment_date_next);
@@ -1455,55 +1420,109 @@ const Bills = () => {
                   }
                   return { bill: b, amount };
                 });
+
+              const nextMonthTotal = billsNextMonth.reduce((sum, { amount }) => sum + amount, 0);
               
               return (
                 <AccordionItem key={category} value={category} className="border-b">
                   <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center justify-between w-full pr-4">
-                      <span className="font-semibold text-sm">{category}</span>
-                      <div className="flex gap-6">
-                        <span className="text-sm text-center min-w-[100px]">${thisMonthTotal.toFixed(2)}</span>
-                        <span className="text-sm text-center min-w-[100px]">${nextMonthTotal.toFixed(2)}</span>
-                      </div>
+                    <div className="grid grid-cols-3 gap-4 w-full pr-4">
+                      <span className="font-semibold text-sm text-left">{category}</span>
+                      <span className="text-sm text-center">${thisMonthTotal.toFixed(2)}</span>
+                      <span className="text-sm text-center">${nextMonthTotal.toFixed(2)}</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="pt-4 space-y-4">
-                      {billsThisMonth.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground mb-2">This Month Bills:</p>
+                    <div className="pt-4">
+                      {/* Get all unique bills for this category */}
+                      {(() => {
+                        const allBills = new Map<string, { bill: Bill; thisMonthAmount: number; nextMonthAmount: number; thisMonthDate: Date | null }>();
+                        
+                        // Add This Month bills
+                        billsThisMonth.forEach(({ bill, amount, itemDate }) => {
+                          if (!allBills.has(bill.id)) {
+                            allBills.set(bill.id, { bill, thisMonthAmount: amount, nextMonthAmount: 0, thisMonthDate: itemDate });
+                          } else {
+                            const existing = allBills.get(bill.id)!;
+                            existing.thisMonthAmount = amount;
+                            existing.thisMonthDate = itemDate;
+                          }
+                        });
+                        
+                        // Add Next Month bills
+                        billsNextMonth.forEach(({ bill, amount }) => {
+                          if (!allBills.has(bill.id)) {
+                            allBills.set(bill.id, { bill, thisMonthAmount: 0, nextMonthAmount: amount, thisMonthDate: null });
+                          } else {
+                            const existing = allBills.get(bill.id)!;
+                            existing.nextMonthAmount = amount;
+                          }
+                        });
+                        
+                        const uniqueBills = Array.from(allBills.values());
+                        
+                        if (uniqueBills.length === 0) {
+                          return <p className="text-xs text-muted-foreground py-1">No bills</p>;
+                        }
+                        
+                        return (
                           <div className="space-y-1">
-                            {billsThisMonth.map(({ bill, amount }) => (
-                              <div key={bill.id} className="flex justify-between items-center text-sm py-1 px-2 rounded bg-muted/50">
-                                <span>{bill.name}</span>
-                                <span className="font-semibold">${amount.toFixed(2)}</span>
-                              </div>
-                            ))}
+                            {uniqueBills.map(({ bill, thisMonthAmount, nextMonthAmount, thisMonthDate }) => {
+                              const isToClose = thisMonthDate && nextPaycheckDate && thisMonthDate < nextPaycheckDate;
+                              return (
+                                <div key={bill.id} className="grid grid-cols-3 gap-4 items-center text-xs py-1 px-2 rounded bg-muted/50">
+                                  <span className="text-left">{bill.name}</span>
+                                  <span className={cn(
+                                    "text-center font-semibold",
+                                    thisMonthAmount > 0 && (isToClose ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400")
+                                  )}>
+                                    {thisMonthAmount > 0 ? `$${thisMonthAmount.toFixed(2)}` : '-'}
+                                  </span>
+                                  <span className="text-center font-semibold">
+                                    {nextMonthAmount > 0 ? `$${nextMonthAmount.toFixed(2)}` : '-'}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
-                        </div>
-                      )}
-                      {billsNextMonth.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground mb-2">Next Month Bills:</p>
-                          <div className="space-y-1">
-                            {billsNextMonth.map(({ bill, amount }) => (
-                              <div key={bill.id} className="flex justify-between items-center text-sm py-1 px-2 rounded bg-muted/50">
-                                <span>{bill.name}</span>
-                                <span className="font-semibold">${amount.toFixed(2)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {billsThisMonth.length === 0 && billsNextMonth.length === 0 && (
-                        <p className="text-sm text-muted-foreground">No bills in this category</p>
-                      )}
+                        );
+                      })()}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
               );
             })}
           </Accordion>
+
+          {/* Total Row */}
+          <div className="mt-4 pt-4 border-t-2">
+            <div className="grid grid-cols-3 gap-4 mb-3">
+              <div className="font-bold text-sm">Total</div>
+              <div className="text-sm text-center font-bold">${thisMonthBillsLockedIn.toFixed(2)}</div>
+              <div className="text-sm text-center font-bold">${nextMonthBillsLockedIn.toFixed(2)}</div>
+            </div>
+            {/* Breakdown for This Month */}
+            <div className="pt-3 border-t">
+              <div className="grid grid-cols-3 gap-4 text-xs">
+                <div className="text-muted-foreground font-medium">This Month Breakdown:</div>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Bills to Close:</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">${billsToCloseBeforePaycheck.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Bills Open:</span>
+                    <span className="font-semibold text-yellow-600 dark:text-yellow-400">${billsOpenAfterPaycheck.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1 border-t">
+                    <span className="font-semibold">Total:</span>
+                    <span className="font-bold">${thisMonthBillsLockedIn.toFixed(2)}</span>
+                  </div>
+                </div>
+                <div></div>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
         </CollapsibleContent>
