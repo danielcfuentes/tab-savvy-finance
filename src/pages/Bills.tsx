@@ -57,6 +57,13 @@ const Bills = () => {
   const { toast } = useToast();
   const hasCheckedUpdatesRef = useRef(false);
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -1006,7 +1013,7 @@ const Bills = () => {
                           {billsOnDate.length === 1 ? (
                             <>
                               <p className="font-semibold">{billsOnDate[0].name}</p>
-                              <p className="text-sm">${billsOnDate[0].amount.toFixed(2)}</p>
+                              <p className="text-sm">${formatCurrency(billsOnDate[0].amount)}</p>
                               {isNextPaycheck && (
                                 <p className="text-xs text-muted-foreground mt-1">🚩 Next Paycheck</p>
                               )}
@@ -1017,14 +1024,14 @@ const Bills = () => {
                                 {billsOnDate.map((bill, idx) => (
                                   <div key={idx} className="flex justify-between items-center gap-4">
                                     <span className="text-sm">{bill.name}</span>
-                                    <span className="text-sm font-semibold">${bill.amount.toFixed(2)}</span>
+                                    <span className="text-sm font-semibold">${formatCurrency(bill.amount)}</span>
                                   </div>
                                 ))}
                               </div>
                               <div className="mt-2 pt-2 border-t">
                                 <div className="flex justify-between items-center">
                                   <span className="text-sm font-semibold">Total</span>
-                                  <span className="text-sm font-bold">${totalAmount.toFixed(2)}</span>
+                                  <span className="text-sm font-bold">${formatCurrency(totalAmount)}</span>
                                 </div>
                               </div>
                               {isNextPaycheck && (
@@ -1209,7 +1216,7 @@ const Bills = () => {
                           {billsOnDate.length === 1 ? (
                             <>
                               <p className="font-semibold">{billsOnDate[0].name}</p>
-                              <p className="text-sm">${billsOnDate[0].amount.toFixed(2)}</p>
+                              <p className="text-sm">${formatCurrency(billsOnDate[0].amount)}</p>
                               {isNextPaycheck && (
                                 <p className="text-xs text-muted-foreground mt-1">🚩 Next Paycheck</p>
                               )}
@@ -1220,14 +1227,14 @@ const Bills = () => {
                                 {billsOnDate.map((bill, idx) => (
                                   <div key={idx} className="flex justify-between items-center gap-4">
                                     <span className="text-sm">{bill.name}</span>
-                                    <span className="text-sm font-semibold">${bill.amount.toFixed(2)}</span>
+                                    <span className="text-sm font-semibold">${formatCurrency(bill.amount)}</span>
                                   </div>
                                 ))}
                               </div>
                               <div className="mt-2 pt-2 border-t">
                                 <div className="flex justify-between items-center">
                                   <span className="text-sm font-semibold">Total</span>
-                                  <span className="text-sm font-bold">${totalAmount.toFixed(2)}</span>
+                                  <span className="text-sm font-bold">${formatCurrency(totalAmount)}</span>
                                 </div>
                               </div>
                               {isNextPaycheck && (
@@ -1359,8 +1366,12 @@ const Bills = () => {
           </div>
 
           <Accordion type="multiple" className="w-full">
-            {["Rent", "Need", "Want", "Debt", "Savings", "Investment"].map((category) => {
-              const categoryBills = bills.filter(b => b.category === category);
+            {(() => {
+              let totalThisMonthSum = 0;
+              let totalNextMonthSum = 0;
+              
+              const categoryItems = ["Rent", "Need", "Want", "Debt", "Savings", "Investment"].map((category) => {
+                const categoryBills = bills.filter(b => b.category === category);
               
               // Calculate This Month totals
               const billsThisMonth = categoryBills
@@ -1385,6 +1396,7 @@ const Bills = () => {
                 });
 
               const thisMonthTotal = billsThisMonth.reduce((sum, { amount }) => sum + amount, 0);
+              totalThisMonthSum += thisMonthTotal;
 
               // Calculate Bills to Close and Bills Open for This Month
               const billsToClose = billsThisMonth
@@ -1422,14 +1434,15 @@ const Bills = () => {
                 });
 
               const nextMonthTotal = billsNextMonth.reduce((sum, { amount }) => sum + amount, 0);
+              totalNextMonthSum += nextMonthTotal;
               
               return (
                 <AccordionItem key={category} value={category} className="border-b">
                   <AccordionTrigger className="hover:no-underline">
                     <div className="grid grid-cols-3 gap-4 w-full pr-4">
                       <span className="font-semibold text-sm text-left">{category}</span>
-                      <span className="text-sm text-center">${thisMonthTotal.toFixed(2)}</span>
-                      <span className="text-sm text-center">${nextMonthTotal.toFixed(2)}</span>
+                      <span className="text-sm text-center">${formatCurrency(thisMonthTotal)}</span>
+                      <span className="text-sm text-center">${formatCurrency(nextMonthTotal)}</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -1476,10 +1489,10 @@ const Bills = () => {
                                     "text-center font-semibold",
                                     thisMonthAmount > 0 && (isToClose ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400")
                                   )}>
-                                    {thisMonthAmount > 0 ? `$${thisMonthAmount.toFixed(2)}` : '-'}
+                                    {thisMonthAmount > 0 ? `$${formatCurrency(thisMonthAmount)}` : '-'}
                                   </span>
                                   <span className="text-center font-semibold">
-                                    {nextMonthAmount > 0 ? `$${nextMonthAmount.toFixed(2)}` : '-'}
+                                    {nextMonthAmount > 0 ? `$${formatCurrency(nextMonthAmount)}` : '-'}
                                   </span>
                                 </div>
                               );
@@ -1491,38 +1504,92 @@ const Bills = () => {
                   </AccordionContent>
                 </AccordionItem>
               );
-            })}
+            });
+            
+            return categoryItems;
+          })()}
           </Accordion>
 
           {/* Total Row */}
-          <div className="mt-4 pt-4 border-t-2">
-            <div className="grid grid-cols-3 gap-4 mb-3">
-              <div className="font-bold text-sm">Total</div>
-              <div className="text-sm text-center font-bold">${thisMonthBillsLockedIn.toFixed(2)}</div>
-              <div className="text-sm text-center font-bold">${nextMonthBillsLockedIn.toFixed(2)}</div>
-            </div>
-            {/* Breakdown for This Month */}
-            <div className="pt-3 border-t">
-              <div className="grid grid-cols-3 gap-4 text-xs">
-                <div className="text-muted-foreground font-medium">This Month Breakdown:</div>
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Bills to Close:</span>
-                    <span className="font-semibold text-green-600 dark:text-green-400">${billsToCloseBeforePaycheck.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Bills Open:</span>
-                    <span className="font-semibold text-yellow-600 dark:text-yellow-400">${billsOpenAfterPaycheck.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-1 border-t">
-                    <span className="font-semibold">Total:</span>
-                    <span className="font-bold">${thisMonthBillsLockedIn.toFixed(2)}</span>
+          {(() => {
+            // Calculate totals by summing all category totals
+            let totalThisMonthSum = 0;
+            let totalNextMonthSum = 0;
+            
+            ["Rent", "Need", "Want", "Debt", "Savings", "Investment"].forEach((category) => {
+              const categoryBills = bills.filter(b => b.category === category);
+              
+              const billsThisMonth = categoryBills
+                .filter(b => {
+                  const d = toTzDate(b.payment_date);
+                  const dNext = toTzDate(b.payment_date_next);
+                  return (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
+                })
+                .map(b => {
+                  const d = toTzDate(b.payment_date);
+                  const dNext = toTzDate(b.payment_date_next);
+                  let amount = 0;
+                  if (d && isSameMonth(d, thisMonth)) {
+                    amount = Number(b.amount_now);
+                  } else if (dNext && isSameMonth(dNext, thisMonth)) {
+                    amount = Number(b.amount_next);
+                  }
+                  return { amount };
+                });
+              
+              const billsNextMonth = categoryBills
+                .filter(b => {
+                  const dNext = toTzDate(b.payment_date_next);
+                  const d = toTzDate(b.payment_date);
+                  return (dNext && isSameMonth(dNext, nextMonth)) || (d && isSameMonth(d, nextMonth));
+                })
+                .map(b => {
+                  const dNext = toTzDate(b.payment_date_next);
+                  const d = toTzDate(b.payment_date);
+                  let amount = 0;
+                  if (dNext && isSameMonth(dNext, nextMonth)) {
+                    amount = Number(b.amount_next);
+                  } else if (d && isSameMonth(d, nextMonth)) {
+                    amount = Number(b.amount_next);
+                  }
+                  return { amount };
+                });
+              
+              totalThisMonthSum += billsThisMonth.reduce((sum, { amount }) => sum + amount, 0);
+              totalNextMonthSum += billsNextMonth.reduce((sum, { amount }) => sum + amount, 0);
+            });
+            
+            return (
+              <div className="mt-4 pt-4 border-t-2">
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  <div className="font-bold text-sm">Total</div>
+                  <div className="text-sm text-center font-bold">${formatCurrency(totalThisMonthSum)}</div>
+                  <div className="text-sm text-center font-bold">${formatCurrency(totalNextMonthSum)}</div>
+                </div>
+                {/* Breakdown for This Month */}
+                <div className="pt-3 border-t">
+                  <div className="grid grid-cols-3 gap-4 text-xs">
+                    <div className="text-muted-foreground font-medium">This Month Breakdown:</div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Bills to Close:</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">${formatCurrency(billsToCloseBeforePaycheck)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Bills Open:</span>
+                        <span className="font-semibold text-yellow-600 dark:text-yellow-400">${formatCurrency(billsOpenAfterPaycheck)}</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 border-t">
+                        <span className="font-semibold">Total:</span>
+                        <span className="font-bold">${formatCurrency(totalThisMonthSum)}</span>
+                      </div>
+                    </div>
+                    <div></div>
                   </div>
                 </div>
-                <div></div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
         </CardContent>
       </Card>
         </CollapsibleContent>
@@ -1592,7 +1659,7 @@ const Bills = () => {
                     const displayAmount = isPaydayPast ? 0 : Number(bill.amount_now);
                     return (
                       <>
-                        <p className="text-2xl font-bold text-foreground">${displayAmount.toFixed(2)}</p>
+                        <p className="text-2xl font-bold text-foreground">${formatCurrency(displayAmount)}</p>
                         {isPaydayPast && paydayDate && (
                           <p className="text-xs text-muted-foreground mt-1">Paid on {format(paydayDate, "MMM d")}</p>
                         )}
@@ -1602,7 +1669,7 @@ const Bills = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Next Month</p>
-                  <p className="text-2xl font-bold text-foreground">${Number(bill.amount_next).toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-foreground">${formatCurrency(Number(bill.amount_next))}</p>
                   <p className="text-xs text-muted-foreground mt-1">Expected amount</p>
                 </div>
               </div>
