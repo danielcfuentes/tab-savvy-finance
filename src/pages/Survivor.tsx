@@ -72,6 +72,10 @@ const Survivor = () => {
   const [expandedBillsToClose, setExpandedBillsToClose] = useState<Set<string>>(new Set());
   const [expandedOpenBills, setExpandedOpenBills] = useState<Set<string>>(new Set());
   const [expandedCoastingExpenses, setExpandedCoastingExpenses] = useState<Set<string>>(new Set());
+  const [expandedRealBalance, setExpandedRealBalance] = useState<Set<string>>(new Set());
+  const [expandedClosedOut, setExpandedClosedOut] = useState<Set<string>>(new Set());
+  const [expandedAbekBalance, setExpandedAbekBalance] = useState<Set<string>>(new Set());
+  const [expandedFuturePaychecks, setExpandedFuturePaychecks] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -211,6 +215,8 @@ const Survivor = () => {
     const billsToClose = getBillsToClosePerAccount(bills, nextPaycheckDate, accountId);
     const closedTab = accountRealBalance - billsToClose;
     const openBills = getOpenBillsPerAccount(bills, nextPaycheckDate, accountId);
+    const nextPaycheck = getNextPaycheckPerAccount(incomes, nextPaycheckDate, accountId);
+    const abekBalance = closedTab - openBills + nextPaycheck;
     
     return {
       id: accountId,
@@ -224,6 +230,8 @@ const Survivor = () => {
       billsToClose,
       closedTab,
       openBills,
+      nextPaycheck,
+      abekBalance,
     };
   });
 
@@ -250,16 +258,20 @@ const Survivor = () => {
   const totalBankCoastingExpenses = bankAccountsCloseOutData.reduce((sum, acc) => sum + acc.coastingExpenses, 0) + unallocatedExpenses;
   const totalRealBankBalance = totalBankBalance - totalBankCoastingExpenses;
   const totalBankBillsToClose = bankAccountsCloseOutData.reduce((sum, acc) => sum + acc.billsToClose, 0);
-  const totalBankClosedTab = bankAccountsCloseOutData.reduce((sum, acc) => sum + acc.closedTab, 0);
+  const totalBankClosedTab = totalRealBankBalance - totalBankBillsToClose;
   const totalBankOpenBills = bankAccountsCloseOutData.reduce((sum, acc) => sum + acc.openBills, 0);
+  const totalBankNextPaycheck = bankAccountsCloseOutData.reduce((sum, acc) => sum + (acc.nextPaycheck || 0), 0);
+  const totalBankAbekBalance = totalBankClosedTab - totalBankOpenBills + totalBankNextPaycheck;
 
   // Calculate totals for Close Out - Credit Accounts (My Credit Tab)
   const totalCreditBalance = creditAccountsCloseOutData.reduce((sum, acc) => sum + acc.bankBalance, 0);
   const totalCreditCoastingExpenses = creditAccountsCloseOutData.reduce((sum, acc) => sum + acc.coastingExpenses, 0);
   const totalRealCreditBalance = totalCreditBalance + totalCreditCoastingExpenses;
   const totalCreditBillsToClose = creditAccountsCloseOutData.reduce((sum, acc) => sum + acc.billsToClose, 0);
-  const totalCreditClosedTab = creditAccountsCloseOutData.reduce((sum, acc) => sum + acc.closedTab, 0);
+  const totalCreditClosedTab = totalRealCreditBalance - totalCreditBillsToClose;
   const totalCreditOpenBills = creditAccountsCloseOutData.reduce((sum, acc) => sum + acc.openBills, 0);
+  const totalCreditNextPaycheck = creditAccountsCloseOutData.reduce((sum, acc) => sum + (acc.nextPaycheck || 0), 0);
+  const totalCreditAbekBalance = totalCreditClosedTab - totalCreditOpenBills + totalCreditNextPaycheck;
 
   // Budget calculations - group bills by category
   const budgetByCategory = bills.reduce((acc, bill) => {
@@ -350,15 +362,75 @@ const Survivor = () => {
     setExpandedCoastingExpenses(newExpanded);
   };
 
+  const toggleRealBalanceExpanded = (accountId: string) => {
+    const newExpanded = new Set(expandedRealBalance);
+    if (newExpanded.has(accountId)) {
+      newExpanded.delete(accountId);
+    } else {
+      newExpanded.add(accountId);
+    }
+    setExpandedRealBalance(newExpanded);
+  };
+
+  const toggleClosedOutExpanded = (accountId: string) => {
+    const newExpanded = new Set(expandedClosedOut);
+    if (newExpanded.has(accountId)) {
+      newExpanded.delete(accountId);
+    } else {
+      newExpanded.add(accountId);
+    }
+    setExpandedClosedOut(newExpanded);
+  };
+
+  const toggleAbekBalanceExpanded = (accountId: string) => {
+    const newExpanded = new Set(expandedAbekBalance);
+    if (newExpanded.has(accountId)) {
+      newExpanded.delete(accountId);
+    } else {
+      newExpanded.add(accountId);
+    }
+    setExpandedAbekBalance(newExpanded);
+  };
+
+  const toggleFuturePaychecksExpanded = (accountId: string) => {
+    const newExpanded = new Set(expandedFuturePaychecks);
+    if (newExpanded.has(accountId)) {
+      newExpanded.delete(accountId);
+    } else {
+      newExpanded.add(accountId);
+    }
+    setExpandedFuturePaychecks(newExpanded);
+  };
+
+  const getFuturePaychecksForAccount = (accountId: string) => {
+    if (!nextPaycheckDate) return [];
+    return incomes.filter(income => {
+      if (income.bank_account_id !== accountId) return false;
+      const dueDate = income.due_date ? new Date(income.due_date) : null;
+      const dueDateNext = income.due_date_next ? new Date(income.due_date_next) : null;
+      if (dueDate) {
+        dueDate.setHours(0, 0, 0, 0);
+        if (dueDate.getTime() === nextPaycheckDate.getTime()) return true;
+      }
+      if (dueDateNext) {
+        dueDateNext.setHours(0, 0, 0, 0);
+        if (dueDateNext.getTime() === nextPaycheckDate.getTime()) return true;
+      }
+      return false;
+    });
+  };
+
   // Render Close Out account card
   const renderCloseOutAccountCard = (accountData: typeof closeOutAccountData[0]) => {
     const isExpanded = expandedCloseOutAccounts.has(accountData.id);
     const billsToClose = getBillsToCloseForAccount(accountData.id);
     const openBills = getOpenBillsForAccount(accountData.id);
     const coastingExpenses = getCoastingExpensesForAccount(accountData.id);
+    const futurePaychecks = getFuturePaychecksForAccount(accountData.id);
     const billsToCloseExpanded = expandedBillsToClose.has(accountData.id);
     const openBillsExpanded = expandedOpenBills.has(accountData.id);
     const coastingExpensesExpanded = expandedCoastingExpenses.has(accountData.id);
+    const futurePaychecksExpanded = expandedFuturePaychecks.has(accountData.id);
 
     const headerColor = accountData.isBankAccount 
       ? "bg-gradient-to-br from-green-400 to-green-500 dark:from-green-500 dark:to-green-600"
@@ -375,7 +447,7 @@ const Survivor = () => {
           isExpanded && `ring-2 ${ringColor}`
         )}
       >
-        <CardHeader 
+        <CardHeader
           className={cn(
             headerColor,
             "pb-3 px-4 pt-4 cursor-pointer transition-all duration-200 group"
@@ -392,250 +464,412 @@ const Survivor = () => {
               ) : (
                 <ChevronRight className="w-4 h-4 text-white" />
               )}
-            </div>
+      </div>
           </div>
         </CardHeader>
         {isExpanded && (
           <CardContent className="p-0 animate-in slide-in-from-top-2 duration-200">
             <div className="divide-y divide-border">
-              {/* Bank Balance */}
-              <div className="p-4 bg-gradient-to-br from-muted/40 to-muted/20">
-                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                  {accountData.isBankAccount ? "Bank Balance" : accountData.isCreditAccount ? "Credit Balance" : "Balance"}
-                </p>
-                <p className="text-xl md:text-2xl font-bold text-foreground">
-                  {formatCurrency(accountData.bankBalance)}
-                </p>
-              </div>
-
-              {/* Coasting Expenses */}
+              {/* Section 1: Real Balance (Collapsible) */}
               <div 
-                className="p-4 bg-gradient-to-br from-yellow-50/80 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10 cursor-pointer hover:from-yellow-100 dark:hover:from-yellow-900/30 transition-all duration-200 group"
+                className={cn(
+                  "cursor-pointer transition-all duration-200 group border-l-4",
+                  accountData.realBalance >= 0 && accountData.isBankAccount
+                    ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
+                    : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
-                  toggleCoastingExpensesExpanded(accountData.id);
+                  toggleRealBalanceExpanded(accountData.id);
                 }}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                      Coasting Expenses
-                    </p>
-                    <p className={cn(
-                      "text-base md:text-lg font-bold",
-                      accountData.isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
-                    )}>
-                      {accountData.coastingExpenses > 0 
-                        ? (accountData.isBankAccount ? `(${formatCurrency(accountData.coastingExpenses)})` : `+${formatCurrency(accountData.coastingExpenses)}`)
-                        : '-'
-                      }
-                    </p>
-                  </div>
-                  {coastingExpenses.length > 0 && (
-                    <div className="mt-1 transition-transform duration-200 group-hover:scale-110">
-                      {coastingExpensesExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                        {accountData.isBankAccount ? "Real Balance" : accountData.isCreditAccount ? "Real Credit Balance" : "Real Balance"}
+                      </p>
+                      <p className={cn(
+                        "text-xl md:text-2xl font-bold",
+                        accountData.realBalance >= 0 && accountData.isBankAccount 
+                          ? "text-green-600 dark:text-green-400" 
+                          : "text-red-600 dark:text-red-400"
+                      )}>
+                        ${formatCurrency(Math.abs(accountData.realBalance))}
+                      </p>
+                    </div>
+                    <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                      {expandedRealBalance.has(accountData.id) ? (
+                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
                       ) : (
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
                       )}
                     </div>
-                  )}
-                </div>
-                {coastingExpensesExpanded && coastingExpenses.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
-                    {coastingExpenses.map((expense) => {
-                      const isPastExpense = !isActiveExpense(expense);
-                      return (
-                        <div 
-                          key={expense.id} 
-                          className={cn(
-                            "text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800",
-                            isPastExpense && "opacity-60"
-                          )}
-                        >
-                          <div className="flex justify-between items-start mb-1">
-                            <span className={cn(
-                              "font-medium truncate flex-1 mr-2",
-                              isPastExpense ? "text-muted-foreground" : "text-foreground"
-                            )}>
-                              {expense.name}
-                            </span>
-                            <span className={cn(
-                              "font-bold whitespace-nowrap",
-                              isPastExpense 
-                                ? "text-muted-foreground" 
-                                : accountData.isBankAccount 
-                                  ? "text-red-600 dark:text-red-400" 
-                                  : "text-blue-600 dark:text-blue-400"
-                            )}>
-                              {formatCurrency(Number(expense.amount))}
-                            </span>
+                    </div>
+                    </div>
+                {expandedRealBalance.has(accountData.id) && (
+                  <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                    {/* Bank Balance */}
+                    <div className="pt-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
+                        {accountData.isBankAccount ? "Bank Balance" : accountData.isCreditAccount ? "Credit Balance" : "Balance"}
+                      </p>
+                      <p className="text-lg font-bold text-foreground">
+                        {formatCurrency(accountData.bankBalance)}
+                      </p>
+                  </div>
+                    {/* Coasting Expenses */}
+                    <div 
+                      className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCoastingExpensesExpanded(accountData.id);
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
+                            Coasting Expenses
+                          </p>
+                          <p className={cn(
+                            "text-sm font-bold",
+                            accountData.isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
+                          )}>
+                            {accountData.coastingExpenses > 0 
+                              ? (accountData.isBankAccount ? `(${formatCurrency(accountData.coastingExpenses)})` : `+${formatCurrency(accountData.coastingExpenses)}`)
+                              : '-'
+                            }
+                          </p>
+                            </div>
+                        {coastingExpenses.length > 0 && (
+                          <div className="transition-transform duration-200">
+                            {coastingExpensesExpanded ? (
+                              <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                            )}
+                            </div>
+                        )}
                           </div>
-                          <div className="text-muted-foreground text-[10px]">
-                            {format(new Date(expense.expense_date), "MMM d, yyyy")}
+                      {coastingExpensesExpanded && coastingExpenses.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-800 space-y-1 max-h-48 overflow-y-auto">
+                          {coastingExpenses.map((expense) => {
+                            const isPastExpense = !isActiveExpense(expense);
+  return (
+                              <div 
+                                key={expense.id} 
+                                className={cn(
+                                  "text-xs bg-white dark:bg-gray-800 p-1.5 rounded border border-yellow-200 dark:border-yellow-800",
+                                  isPastExpense && "opacity-60"
+                                )}
+                              >
+                                <div className="flex justify-between items-start">
+                                  <span className={cn(
+                                    "font-medium truncate flex-1 mr-2",
+                                    isPastExpense ? "text-muted-foreground" : "text-foreground"
+                                  )}>
+                                    {expense.name}
+                                  </span>
+                                  <span className={cn(
+                                    "font-bold whitespace-nowrap",
+                                    isPastExpense 
+                                      ? "text-muted-foreground" 
+                                      : accountData.isBankAccount 
+                                        ? "text-red-600 dark:text-red-400" 
+                                        : "text-blue-600 dark:text-blue-400"
+                                  )}>
+                                    {formatCurrency(Number(expense.amount))}
+                                  </span>
+                            </div>
+                            </div>
+                            );
+                          })}
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                      )}
+                            </div>
+                            </div>
                 )}
-              </div>
+      </div>
 
-              {/* Real Balance */}
-              <div className={cn(
-                "p-4 bg-gradient-to-br",
-                accountData.realBalance >= 0 && accountData.isBankAccount
-                  ? "from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10" 
-                  : "from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10"
-              )}>
-                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                  {accountData.isBankAccount ? "Real Balance" : accountData.isCreditAccount ? "Real Credit Balance" : "Real Balance"}
-                </p>
-                <p className={cn(
-                  "text-xl md:text-2xl font-bold",
-                  accountData.realBalance >= 0 && accountData.isBankAccount 
-                    ? "text-green-600 dark:text-green-400" 
-                    : "text-red-600 dark:text-red-400"
-                )}>
-                  ${formatCurrency(Math.abs(accountData.realBalance))}
-                </p>
-              </div>
-
-              {/* Bills to Close */}
+              {/* Section 2: Closed Out (Collapsible) */}
               <div 
-                className="p-4 bg-gradient-to-br from-yellow-50/80 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10 cursor-pointer hover:from-yellow-100 dark:hover:from-yellow-900/30 transition-all duration-200 group"
+                className={cn(
+                  "cursor-pointer transition-all duration-200 group border-l-4",
+                  accountData.closedTab >= 0
+                    ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
+                    : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
-                  toggleBillsToCloseExpanded(accountData.id);
+                  toggleClosedOutExpanded(accountData.id);
                 }}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
-                      Bills to Close
-                      <InfoTooltip content="Bills that are due before your next paycheck. These bills will be paid from your current balance." />
-                    </p>
-                    <p className="text-base md:text-lg font-bold text-red-600 dark:text-red-400">
-                      {accountData.billsToClose > 0 
-                        ? `(${formatCurrency(accountData.billsToClose)})`
-                        : '-'
-                      }
-                    </p>
-                  </div>
-                  {billsToClose.length > 0 && (
-                    <div className="mt-1 transition-transform duration-200 group-hover:scale-110">
-                      {billsToCloseExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      )}
-                    </div>
-                  )}
-                </div>
-                {billsToCloseExpanded && billsToClose.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
-                    {billsToClose.map((bill) => (
-                      <div 
-                        key={bill.id} 
-                        className="text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800"
-                      >
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-medium truncate flex-1 mr-2 text-foreground">
-                            {bill.name}
-                          </span>
-                          <span className="font-bold whitespace-nowrap text-red-600 dark:text-red-400">
-                            ${formatCurrency(Number(bill.amount_now))}
-                          </span>
-                        </div>
-                        <div className="text-muted-foreground text-[10px]">
-                          {format(new Date(bill.payment_date), "MMM d, yyyy")}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Closed Tab */}
-              <div className={cn(
-                "p-4 bg-gradient-to-br",
-                accountData.closedTab >= 0
-                  ? "from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10" 
-                  : "from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10"
-              )}>
-                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
-                  Closed Tab
-                  <InfoTooltip content="Your balance after paying bills scheduled before your next paycheck. This shows how much you'll have left after closing out these bills." />
-                </p>
-                <p className={cn(
-                  "text-xl md:text-2xl font-bold",
-                  accountData.closedTab >= 0 
-                    ? "text-green-600 dark:text-green-400" 
-                    : "text-red-600 dark:text-red-400"
-                )}>
-                  ${formatCurrency(Math.abs(accountData.closedTab))}
-                </p>
-              </div>
-
-              {/* Open Bills */}
-              <div 
-                className="p-4 bg-gradient-to-br from-yellow-50/80 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10 cursor-pointer hover:from-yellow-100 dark:hover:from-yellow-900/30 transition-all duration-200 group"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleOpenBillsExpanded(accountData.id);
-                }}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
-                      Open Bills
-                      <InfoTooltip content="Bills that are due on or after your next paycheck. These are future expenses you need to plan for." />
-                    </p>
-                    <p className="text-base md:text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                      {accountData.openBills > 0 
-                        ? formatCurrency(accountData.openBills)
-                        : '-'
-                      }
-                    </p>
-                  </div>
-                  {openBills.length > 0 && (
-                    <div className="mt-1 transition-transform duration-200 group-hover:scale-110">
-                      {openBillsExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      )}
-                    </div>
-                  )}
-                </div>
-                {openBillsExpanded && openBills.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
-                    {openBills.map((bill) => (
-                      <div 
-                        key={bill.id} 
-                        className="text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800"
-                      >
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-medium truncate flex-1 mr-2 text-foreground">
-                            {bill.name}
-                          </span>
-                          <span className="font-bold whitespace-nowrap text-yellow-600 dark:text-yellow-400">
-                            ${formatCurrency(Number(bill.amount_now))}
-                          </span>
-                        </div>
-                        <div className="text-muted-foreground text-[10px]">
-                          {format(new Date(bill.payment_date), "MMM d, yyyy")}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
+                        Closed Out
+                        <InfoTooltip content="Your balance after paying bills scheduled before your next paycheck." />
+                      </p>
+                      <p className={cn(
+                        "text-xl md:text-2xl font-bold",
+                        accountData.closedTab >= 0 
+                          ? "text-green-600 dark:text-green-400" 
+                          : "text-red-600 dark:text-red-400"
+                      )}>
+                        ${formatCurrency(Math.abs(accountData.closedTab))}
+                      </p>
             </div>
+                    <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                      {expandedClosedOut.has(accountData.id) ? (
+                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+            ) : (
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            )}
+          </div>
+                    </div>
+                    </div>
+                {expandedClosedOut.has(accountData.id) && (
+                  <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                    {/* Real Balance */}
+                    <div className="pt-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
+                        Real Balance
+                      </p>
+                      <p className={cn(
+                        "text-lg font-bold",
+                        accountData.realBalance >= 0 && accountData.isBankAccount 
+                          ? "text-green-600 dark:text-green-400" 
+                          : "text-red-600 dark:text-red-400"
+                      )}>
+                        ${formatCurrency(Math.abs(accountData.realBalance))}
+                      </p>
+                    </div>
+                    {/* Bills to Close */}
+                    <div 
+                      className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleBillsToCloseExpanded(accountData.id);
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
+                            Bills to Close
+                            <InfoTooltip content="Bills that are due before your next paycheck." />
+                          </p>
+                          <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                            {accountData.billsToClose > 0 
+                              ? `(${formatCurrency(accountData.billsToClose)})`
+                              : '-'
+                            }
+                          </p>
+                    </div>
+                        {billsToClose.length > 0 && (
+                          <div className="transition-transform duration-200">
+                            {billsToCloseExpanded ? (
+                              <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                            )}
+                        </div>
+                        )}
+                        </div>
+                      {billsToCloseExpanded && billsToClose.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-800 space-y-1 max-h-48 overflow-y-auto">
+                          {billsToClose.map((bill) => (
+                            <div 
+                              key={bill.id} 
+                              className="text-xs bg-white dark:bg-gray-800 p-1.5 rounded border border-yellow-200 dark:border-yellow-800"
+                            >
+                              <div className="flex justify-between items-start">
+                                <span className="font-medium truncate flex-1 mr-2 text-foreground">
+                                  {bill.name}
+                                </span>
+                                <span className="font-bold whitespace-nowrap text-red-600 dark:text-red-400">
+                                  ${formatCurrency(Number(bill.amount_now))}
+                                </span>
+                      </div>
+                    </div>
+                  ))}
+                      </div>
+                      )}
+                    </div>
+                      </div>
+                )}
+                  </div>
+                  
+              {/* Section 3: Abek Balance (Collapsible) */}
+              <div 
+                className={cn(
+                  "cursor-pointer transition-all duration-200 group border-l-4",
+                  accountData.abekBalance >= 0 && accountData.isBankAccount
+                    ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
+                    : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAbekBalanceExpanded(accountData.id);
+                }}
+              >
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                        Abek Balance
+                      </p>
+                      <p className={cn(
+                        "text-xl md:text-2xl font-bold",
+                        accountData.abekBalance >= 0 && accountData.isBankAccount 
+                          ? "text-green-600 dark:text-green-400" 
+                          : "text-red-600 dark:text-red-400"
+                      )}>
+                        ${formatCurrency(Math.abs(accountData.abekBalance))}
+                      </p>
+                            </div>
+                    <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                      {expandedAbekBalance.has(accountData.id) ? (
+                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      )}
+                            </div>
+                          </div>
+                    </div>
+                {expandedAbekBalance.has(accountData.id) && (
+                  <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                    {/* Closed Out */}
+                    <div className="pt-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
+                        Closed Out
+                      </p>
+                      <p className={cn(
+                        "text-lg font-bold",
+                        accountData.closedTab >= 0 
+                          ? "text-green-600 dark:text-green-400" 
+                          : "text-red-600 dark:text-red-400"
+                      )}>
+                        ${formatCurrency(Math.abs(accountData.closedTab))}
+                      </p>
+                  </div>
+                    {/* Open Bills */}
+                    <div 
+                      className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleOpenBillsExpanded(accountData.id);
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
+                              Open Bills
+                            <InfoTooltip content="Bills that are due on or after your next paycheck." />
+                          </p>
+                          <p className="text-sm font-bold text-yellow-600 dark:text-yellow-400">
+                            {accountData.openBills > 0 
+                              ? `(${formatCurrency(accountData.openBills)})`
+                              : '-'
+                            }
+                          </p>
+                            </div>
+                        {openBills.length > 0 && (
+                          <div className="transition-transform duration-200">
+                            {openBillsExpanded ? (
+                              <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                            )}
+                            </div>
+                        )}
+                          </div>
+                      {openBillsExpanded && openBills.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-800 space-y-1 max-h-48 overflow-y-auto">
+                          {openBills.map((bill) => (
+                            <div 
+                              key={bill.id} 
+                              className="text-xs bg-white dark:bg-gray-800 p-1.5 rounded border border-yellow-200 dark:border-yellow-800"
+                            >
+                              <div className="flex justify-between items-start">
+                                <span className="font-medium truncate flex-1 mr-2 text-foreground">
+                                  {bill.name}
+                      </span>
+                                <span className="font-bold whitespace-nowrap text-yellow-600 dark:text-yellow-400">
+                                  ${formatCurrency(Number(bill.amount_now))}
+                      </span>
+                            </div>
+                            </div>
+                  ))}
+                          </div>
+                      )}
+                            </div>
+                    {/* Future Paychecks */}
+                    <div 
+                      className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFuturePaychecksExpanded(accountData.id);
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
+                            Future Paychecks
+                            <InfoTooltip content="Income expected to be deposited on your next paycheck date." />
+                          </p>
+                          <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                            +{formatCurrency(accountData.nextPaycheck || 0)}
+                          </p>
+                            </div>
+                        {futurePaychecks.length > 0 && (
+                          <div className="transition-transform duration-200">
+                            {futurePaychecksExpanded ? (
+                              <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                            )}
+                          </div>
+                        )}
+                        </div>
+                      {futurePaychecksExpanded && futurePaychecks.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800 space-y-1 max-h-48 overflow-y-auto">
+                          {futurePaychecks.map((income) => {
+                            const dueDate = income.due_date ? new Date(income.due_date) : null;
+                            const dueDateNext = income.due_date_next ? new Date(income.due_date_next) : null;
+                            let amount = 0;
+                            if (dueDate && dueDate.getTime() === nextPaycheckDate?.getTime()) {
+                              amount = Number(income.amount_now);
+                            } else if (dueDateNext && dueDateNext.getTime() === nextPaycheckDate?.getTime()) {
+                              amount = Number(income.amount_next);
+                            }
+                        return (
+                              <div 
+                                key={income.id} 
+                                className="text-xs bg-white dark:bg-gray-800 p-1.5 rounded border border-green-200 dark:border-green-800"
+                              >
+                                <div className="flex justify-between items-start">
+                                  <span className="font-medium truncate flex-1 mr-2 text-foreground">
+                                    {income.name}
+                                  </span>
+                                  <span className="font-bold whitespace-nowrap text-green-600 dark:text-green-400">
+                                    +{formatCurrency(amount)}
+                              </span>
+                      </div>
+                        </div>
+                                );
+                              })}
+                        </div>
+                              )}
+                        </div>
+                        </div>
+                )}
+                      </div>
+                    </div>
           </CardContent>
         )}
-      </Card>
-    );
+                          </Card>
+                        );
   };
 
   // Render Total Tab for Close Out
@@ -647,6 +881,8 @@ const Survivor = () => {
     const totalBillsToClose = isBankAccount ? totalBankBillsToClose : totalCreditBillsToClose;
     const totalClosedTab = isBankAccount ? totalBankClosedTab : totalCreditClosedTab;
     const totalOpenBills = isBankAccount ? totalBankOpenBills : totalCreditOpenBills;
+    const totalNextPaycheck = isBankAccount ? totalBankNextPaycheck : totalCreditNextPaycheck;
+    const totalAbekBalance = isBankAccount ? totalBankAbekBalance : totalCreditAbekBalance;
 
     const allBillsToClose = bills.filter(bill => {
       if (!nextPaycheckDate) return false;
@@ -684,283 +920,508 @@ const Survivor = () => {
     const totalBillsToCloseExpanded = expandedBillsToClose.has(isBankAccount ? "total-bank" : "total-credit");
     const totalOpenBillsExpanded = expandedOpenBills.has(isBankAccount ? "total-bank" : "total-credit");
     const totalCoastingExpensesExpanded = expandedCoastingExpenses.has(isBankAccount ? "total-bank" : "total-credit");
+    const totalRealBalanceExpanded = expandedRealBalance.has(isBankAccount ? "total-bank" : "total-credit");
+    const totalClosedOutExpanded = expandedClosedOut.has(isBankAccount ? "total-bank" : "total-credit");
+    const totalAbekBalanceExpanded = expandedAbekBalance.has(isBankAccount ? "total-bank" : "total-credit");
+    const totalFuturePaychecksExpanded = expandedFuturePaychecks.has(isBankAccount ? "total-bank" : "total-credit");
+    
+    const allFuturePaychecks = incomes.filter(income => {
+      if (!nextPaycheckDate) return false;
+      const account = bankAccounts.find(acc => acc.id === income.bank_account_id);
+      if (!account) return false;
+      const accountType = account.account_type?.toLowerCase() || '';
+      const matchesAccountType = isBankAccount 
+        ? ['checking', 'savings', 'digital_wallet'].includes(accountType)
+        : ['credit_card', 'loan'].includes(accountType);
+      if (!matchesAccountType) return false;
+      const dueDate = income.due_date ? new Date(income.due_date) : null;
+      const dueDateNext = income.due_date_next ? new Date(income.due_date_next) : null;
+      if (dueDate) {
+        dueDate.setHours(0, 0, 0, 0);
+        if (dueDate.getTime() === nextPaycheckDate.getTime()) return true;
+      }
+      if (dueDateNext) {
+        dueDateNext.setHours(0, 0, 0, 0);
+        if (dueDateNext.getTime() === nextPaycheckDate.getTime()) return true;
+      }
+      return false;
+    });
 
     const headerColor = isBankAccount
       ? "bg-gradient-to-br from-green-600 to-green-700 dark:from-green-700 dark:to-green-800"
       : "bg-gradient-to-br from-pink-500 to-pink-600 dark:from-pink-600 dark:to-pink-700";
 
-    return (
+                                return (
       <Card className="border-2 shadow-lg hover:shadow-xl transition-shadow">
         <CardHeader className={cn(headerColor, "pb-3 px-4 pt-4")}>
           <CardTitle className="text-white text-base font-bold">Total Tab</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-border">
-            {/* Bank/Credit Balance */}
-            <div className="p-4 bg-gradient-to-br from-muted/40 to-muted/20">
-              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                {isBankAccount ? "Bank Balance" : "Credit Balance"}
-              </p>
-              <p className="text-xl md:text-2xl font-bold text-foreground">
-                {formatCurrency(totalBalance)}
-              </p>
-            </div>
-
-            {/* Coasting Expenses */}
+            {/* Section 1: Real Balance (Collapsible) */}
             <div 
-              className="p-4 bg-gradient-to-br from-yellow-50/80 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10 cursor-pointer hover:from-yellow-100 dark:hover:from-yellow-900/30 transition-all duration-200 group"
-              onClick={() => {
-                const newExpanded = new Set(expandedCoastingExpenses);
-                const key = isBankAccount ? "total-bank" : "total-credit";
-                if (newExpanded.has(key)) {
-                  newExpanded.delete(key);
-                } else {
-                  newExpanded.add(key);
-                }
-                setExpandedCoastingExpenses(newExpanded);
-              }}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                    Coasting Expenses
-                  </p>
-                  <p className={cn(
-                    "text-base md:text-lg font-bold",
-                    isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
-                  )}>
-                    {totalCoastingExp > 0 
-                      ? (isBankAccount ? `(${formatCurrency(totalCoastingExp)})` : `+${formatCurrency(totalCoastingExp)}`)
-                      : '-'
-                    }
-                  </p>
-                </div>
-                <div className="mt-1 transition-transform duration-200 group-hover:scale-110">
-                  {totalCoastingExpensesExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </div>
-              </div>
-              {totalCoastingExpensesExpanded && allCoastingExpenses.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
-                  {allCoastingExpenses.map((expense) => {
-                    const account = bankAccounts.find(acc => acc.id === expense.bank_account_id);
-                    const accountType = account?.account_type?.toLowerCase() || '';
-                    const isBankAcc = ['checking', 'savings', 'digital_wallet'].includes(accountType);
-                    const isPastExpense = !isActiveExpense(expense);
-                    return (
-                      <div 
-                        key={expense.id} 
-                        className={cn(
-                          "text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800",
-                          isPastExpense && "opacity-60"
-                        )}
-                      >
-                        <div className="flex justify-between items-start mb-1">
-                          <span className={cn(
-                            "font-medium truncate flex-1 mr-2",
-                            isPastExpense ? "text-muted-foreground" : "text-foreground"
-                          )}>
-                            {expense.name}
-                          </span>
-                          <span className={cn(
-                            "font-bold whitespace-nowrap",
-                            isPastExpense 
-                              ? "text-muted-foreground" 
-                              : isBankAcc 
-                                ? "text-red-600 dark:text-red-400" 
-                                : "text-blue-600 dark:text-blue-400"
-                          )}>
-                            {formatCurrency(Number(expense.amount))}
-                          </span>
-                        </div>
-                        <div className="text-muted-foreground text-[10px]">
-                          {format(new Date(expense.expense_date), "MMM d, yyyy")}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              className={cn(
+                "cursor-pointer transition-all duration-200 group border-l-4",
+                totalRealBal >= 0 && isBankAccount
+                  ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
+                  : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
               )}
-            </div>
-
-            {/* Real Balance */}
-            <div className={cn(
-              "p-4 bg-gradient-to-br",
-              totalRealBal >= 0 && isBankAccount
-                ? "from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10" 
-                : "from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10"
-            )}>
-              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                {isBankAccount ? "Real Balance" : "Real Credit Balance"}
-              </p>
-              <p className={cn(
-                "text-xl md:text-2xl font-bold",
-                totalRealBal >= 0 && isBankAccount 
-                  ? "text-green-600 dark:text-green-400" 
-                  : "text-red-600 dark:text-red-400"
-              )}>
-                ${formatCurrency(Math.abs(totalRealBal))}
-              </p>
-            </div>
-
-            {/* Bills to Close */}
-            <div 
-              className="p-4 bg-gradient-to-br from-yellow-50/80 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10 cursor-pointer hover:from-yellow-100 dark:hover:from-yellow-900/30 transition-all duration-200 group"
               onClick={() => {
-                const newExpanded = new Set(expandedBillsToClose);
+                const newExpanded = new Set(expandedRealBalance);
                 const key = isBankAccount ? "total-bank" : "total-credit";
                 if (newExpanded.has(key)) {
                   newExpanded.delete(key);
                 } else {
                   newExpanded.add(key);
                 }
-                setExpandedBillsToClose(newExpanded);
+                setExpandedRealBalance(newExpanded);
               }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                    Bills to Close
-                  </p>
-                  <p className="text-base md:text-lg font-bold text-red-600 dark:text-red-400">
-                    {totalBillsToClose > 0 
-                      ? `(${formatCurrency(totalBillsToClose)})`
-                      : '-'
-                    }
-                  </p>
-                </div>
-                <div className="mt-1 transition-transform duration-200 group-hover:scale-110">
-                  {totalBillsToCloseExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </div>
-              </div>
-              {totalBillsToCloseExpanded && allBillsToClose.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
-                  {allBillsToClose.map((bill) => (
-                    <div 
-                      key={bill.id} 
-                      className="text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800"
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="font-medium truncate flex-1 mr-2 text-foreground">
-                          {bill.name}
-                        </span>
-                        <span className="font-bold whitespace-nowrap text-red-600 dark:text-red-400">
-                          ${formatCurrency(Number(bill.amount_now))}
-                        </span>
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                      {isBankAccount ? "Real Balance" : "Real Credit Balance"}
+                    </p>
+                    <p className={cn(
+                      "text-xl md:text-2xl font-bold",
+                      totalRealBal >= 0 && isBankAccount 
+                        ? "text-green-600 dark:text-green-400" 
+                        : "text-red-600 dark:text-red-400"
+                    )}>
+                      ${formatCurrency(Math.abs(totalRealBal))}
+                    </p>
                       </div>
-                      <div className="text-muted-foreground text-[10px]">
-                        {format(new Date(bill.payment_date), "MMM d, yyyy")}
+                  <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                    {totalRealBalanceExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    )}
+                    </div>
                       </div>
                     </div>
-                  ))}
+              {totalRealBalanceExpanded && (
+                <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                  {/* Bank/Credit Balance */}
+                  <div className="pt-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
+                      {isBankAccount ? "Bank Balance" : "Credit Balance"}
+                    </p>
+                    <p className="text-lg font-bold text-foreground">
+                      {formatCurrency(totalBalance)}
+                    </p>
+                      </div>
+                  {/* Coasting Expenses */}
+                  <div 
+                    className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newExpanded = new Set(expandedCoastingExpenses);
+                      const key = isBankAccount ? "total-bank" : "total-credit";
+                      if (newExpanded.has(key)) {
+                        newExpanded.delete(key);
+                      } else {
+                        newExpanded.add(key);
+                      }
+                      setExpandedCoastingExpenses(newExpanded);
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
+                          Coasting Expenses
+                        </p>
+                        <p className={cn(
+                          "text-sm font-bold",
+                          isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
+                        )}>
+                          {totalCoastingExp > 0 
+                            ? (isBankAccount ? `(${formatCurrency(totalCoastingExp)})` : `+${formatCurrency(totalCoastingExp)}`)
+                            : '-'
+                          }
+                        </p>
+                    </div>
+                      {allCoastingExpenses.length > 0 && (
+                        <div className="transition-transform duration-200">
+                          {totalCoastingExpensesExpanded ? (
+                            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                          )}
+                      </div>
+                      )}
+                    </div>
+                    {totalCoastingExpensesExpanded && allCoastingExpenses.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-800 space-y-1 max-h-48 overflow-y-auto">
+                        {allCoastingExpenses.map((expense) => {
+                          const account = bankAccounts.find(acc => acc.id === expense.bank_account_id);
+                          const accountType = account?.account_type?.toLowerCase() || '';
+                          const isBankAcc = ['checking', 'savings', 'digital_wallet'].includes(accountType);
+                          const isPastExpense = !isActiveExpense(expense);
+                              return (
+                            <div 
+                              key={expense.id} 
+                              className={cn(
+                                "text-xs bg-white dark:bg-gray-800 p-1.5 rounded border border-yellow-200 dark:border-yellow-800",
+                                isPastExpense && "opacity-60"
+                              )}
+                            >
+                              <div className="flex justify-between items-start">
+                                <span className={cn(
+                                  "font-medium truncate flex-1 mr-2",
+                                  isPastExpense ? "text-muted-foreground" : "text-foreground"
+                                )}>
+                                  {expense.name}
+                                </span>
+                                <span className={cn(
+                                  "font-bold whitespace-nowrap",
+                                  isPastExpense 
+                                    ? "text-muted-foreground" 
+                                    : isBankAcc 
+                                      ? "text-red-600 dark:text-red-400" 
+                                      : "text-blue-600 dark:text-blue-400"
+                                )}>
+                                  {formatCurrency(Number(expense.amount))}
+                                </span>
+                              </div>
+                            </div>
+                                    );
+                                  })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-            </div>
-
-            {/* Closed Tab */}
-            <div className={cn(
-              "p-4 bg-gradient-to-br",
-              totalClosedTab >= 0 && isBankAccount
-                ? "from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10" 
-                : "from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10"
-            )}>
-              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                Closed Tab
-              </p>
-              <p className={cn(
-                "text-xl md:text-2xl font-bold",
+                  </div>
+                  
+            {/* Section 2: Closed Out (Collapsible) */}
+            <div 
+              className={cn(
+                "cursor-pointer transition-all duration-200 group border-l-4",
                 totalClosedTab >= 0 && isBankAccount
-                  ? "text-green-600 dark:text-green-400" 
-                  : "text-red-600 dark:text-red-400"
-              )}>
-                ${formatCurrency(Math.abs(totalClosedTab))}
-              </p>
-            </div>
-
-            {/* Open Bills */}
-            <div 
-              className="p-4 bg-gradient-to-br from-yellow-50/80 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10 cursor-pointer hover:from-yellow-100 dark:hover:from-yellow-900/30 transition-all duration-200 group"
+                  ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
+                  : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
+              )}
               onClick={() => {
-                const newExpanded = new Set(expandedOpenBills);
+                const newExpanded = new Set(expandedClosedOut);
                 const key = isBankAccount ? "total-bank" : "total-credit";
                 if (newExpanded.has(key)) {
                   newExpanded.delete(key);
                 } else {
                   newExpanded.add(key);
                 }
-                setExpandedOpenBills(newExpanded);
+                setExpandedClosedOut(newExpanded);
               }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                    Open Bills
-                  </p>
-                  <p className="text-base md:text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                    {totalOpenBills > 0 
-                      ? formatCurrency(totalOpenBills)
-                      : '-'
-                    }
-                  </p>
-                </div>
-                <div className="mt-1 transition-transform duration-200 group-hover:scale-110">
-                  {totalOpenBillsExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  )}
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
+                      Closed Out
+                      <InfoTooltip content="Your balance after paying bills scheduled before your next paycheck." />
+                    </p>
+                    <p className={cn(
+                      "text-xl md:text-2xl font-bold",
+                      totalClosedTab >= 0 && isBankAccount
+                        ? "text-green-600 dark:text-green-400" 
+                        : "text-red-600 dark:text-red-400"
+                    )}>
+                      ${formatCurrency(Math.abs(totalClosedTab))}
+                    </p>
+                  </div>
+                  <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                    {totalClosedOutExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
                 </div>
               </div>
-              {totalOpenBillsExpanded && allOpenBills.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800 space-y-2 max-h-64 overflow-y-auto">
-                  {allOpenBills.map((bill) => (
-                    <div 
-                      key={bill.id} 
-                      className="text-xs bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800"
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="font-medium truncate flex-1 mr-2 text-foreground">
-                          {bill.name}
-                        </span>
-                        <span className="font-bold whitespace-nowrap text-yellow-600 dark:text-yellow-400">
-                          ${formatCurrency(Number(bill.amount_now))}
-                        </span>
+              {totalClosedOutExpanded && (
+                <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                  {/* Real Balance */}
+                  <div className="pt-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
+                      Real Balance
+                    </p>
+                    <p className={cn(
+                      "text-lg font-bold",
+                      totalRealBal >= 0 && isBankAccount 
+                        ? "text-green-600 dark:text-green-400" 
+                        : "text-red-600 dark:text-red-400"
+                    )}>
+                      ${formatCurrency(Math.abs(totalRealBal))}
+                    </p>
+                  </div>
+                  {/* Bills to Close */}
+                  <div 
+                    className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newExpanded = new Set(expandedBillsToClose);
+                      const key = isBankAccount ? "total-bank" : "total-credit";
+                      if (newExpanded.has(key)) {
+                        newExpanded.delete(key);
+                      } else {
+                        newExpanded.add(key);
+                      }
+                      setExpandedBillsToClose(newExpanded);
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
+                          Bills to Close
+                          <InfoTooltip content="Bills that are due before your next paycheck." />
+                        </p>
+                        <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                          {totalBillsToClose > 0 
+                            ? `(${formatCurrency(totalBillsToClose)})`
+                            : '-'
+                          }
+                        </p>
                       </div>
-                      <div className="text-muted-foreground text-[10px]">
-                        {format(new Date(bill.payment_date), "MMM d, yyyy")}
-                      </div>
+                      {allBillsToClose.length > 0 && (
+                        <div className="transition-transform duration-200">
+                          {totalBillsToCloseExpanded ? (
+                            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    {totalBillsToCloseExpanded && allBillsToClose.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-800 space-y-1 max-h-48 overflow-y-auto">
+                        {allBillsToClose.map((bill) => (
+                          <div 
+                            key={bill.id} 
+                            className="text-xs bg-white dark:bg-gray-800 p-1.5 rounded border border-yellow-200 dark:border-yellow-800"
+                          >
+                            <div className="flex justify-between items-start">
+                              <span className="font-medium truncate flex-1 mr-2 text-foreground">
+                                {bill.name}
+                      </span>
+                              <span className="font-bold whitespace-nowrap text-red-600 dark:text-red-400">
+                                ${formatCurrency(Number(bill.amount_now))}
+                      </span>
+                    </div>
+                  </div>
+                        ))}
+                </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              </div>
+
+            {/* Section 3: Abek Balance (Collapsible) */}
+            <div 
+              className={cn(
+                "cursor-pointer transition-all duration-200 group border-l-4",
+                totalAbekBalance >= 0 && isBankAccount
+                  ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
+                  : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
+              )}
+              onClick={() => {
+                const newExpanded = new Set(expandedAbekBalance);
+                const key = isBankAccount ? "total-bank" : "total-credit";
+                if (newExpanded.has(key)) {
+                  newExpanded.delete(key);
+                } else {
+                  newExpanded.add(key);
+                }
+                setExpandedAbekBalance(newExpanded);
+              }}
+            >
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                      Abek Balance
+                    </p>
+                    <p className={cn(
+                      "text-xl md:text-2xl font-bold",
+                      totalAbekBalance >= 0 && isBankAccount 
+                        ? "text-green-600 dark:text-green-400" 
+                        : "text-red-600 dark:text-red-400"
+                    )}>
+                      ${formatCurrency(Math.abs(totalAbekBalance))}
+                    </p>
+                  </div>
+                  <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                    {totalAbekBalanceExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+              </div>
+              {totalAbekBalanceExpanded && (
+                <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                  {/* Closed Out */}
+                  <div className="pt-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
+                      Closed Out
+                    </p>
+                    <p className={cn(
+                      "text-lg font-bold",
+                      totalClosedTab >= 0 && isBankAccount
+                        ? "text-green-600 dark:text-green-400" 
+                        : "text-red-600 dark:text-red-400"
+                    )}>
+                      ${formatCurrency(Math.abs(totalClosedTab))}
+                    </p>
+                  </div>
+                  {/* Open Bills */}
+                  <div 
+                    className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newExpanded = new Set(expandedOpenBills);
+                      const key = isBankAccount ? "total-bank" : "total-credit";
+                      if (newExpanded.has(key)) {
+                        newExpanded.delete(key);
+                      } else {
+                        newExpanded.add(key);
+                      }
+                      setExpandedOpenBills(newExpanded);
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
+                          Open Bills
+                          <InfoTooltip content="Bills that are due on or after your next paycheck." />
+                        </p>
+                        <p className="text-sm font-bold text-yellow-600 dark:text-yellow-400">
+                          {totalOpenBills > 0 
+                            ? `(${formatCurrency(totalOpenBills)})`
+                            : '-'
+                          }
+                        </p>
+                      </div>
+                      {allOpenBills.length > 0 && (
+                        <div className="transition-transform duration-200">
+                          {totalOpenBillsExpanded ? (
+                            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {totalOpenBillsExpanded && allOpenBills.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-800 space-y-1 max-h-48 overflow-y-auto">
+                        {allOpenBills.map((bill) => (
+                          <div 
+                            key={bill.id} 
+                            className="text-xs bg-white dark:bg-gray-800 p-1.5 rounded border border-yellow-200 dark:border-yellow-800"
+                          >
+                            <div className="flex justify-between items-start">
+                              <span className="font-medium truncate flex-1 mr-2 text-foreground">
+                                {bill.name}
+                              </span>
+                              <span className="font-bold whitespace-nowrap text-yellow-600 dark:text-yellow-400">
+                                ${formatCurrency(Number(bill.amount_now))}
+                              </span>
+                            </div>
+                                  </div>
+                        ))}
+                                </div>
+                              )}
+                            </div>
+                  {/* Future Paychecks */}
+                  <div 
+                    className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newExpanded = new Set(expandedFuturePaychecks);
+                      const key = isBankAccount ? "total-bank" : "total-credit";
+                      if (newExpanded.has(key)) {
+                        newExpanded.delete(key);
+                      } else {
+                        newExpanded.add(key);
+                      }
+                      setExpandedFuturePaychecks(newExpanded);
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
+                          Future Paychecks
+                          <InfoTooltip content="Income expected to be deposited on your next paycheck date." />
+                        </p>
+                        <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                          +{formatCurrency(totalNextPaycheck)}
+                        </p>
+                      </div>
+                      {allFuturePaychecks.length > 0 && (
+                        <div className="transition-transform duration-200">
+                          {totalFuturePaychecksExpanded ? (
+                            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {totalFuturePaychecksExpanded && allFuturePaychecks.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800 space-y-1 max-h-48 overflow-y-auto">
+                        {allFuturePaychecks.map((income) => {
+                          const dueDate = income.due_date ? new Date(income.due_date) : null;
+                          const dueDateNext = income.due_date_next ? new Date(income.due_date_next) : null;
+                          let amount = 0;
+                          if (dueDate && dueDate.getTime() === nextPaycheckDate?.getTime()) {
+                            amount = Number(income.amount_now);
+                          } else if (dueDateNext && dueDateNext.getTime() === nextPaycheckDate?.getTime()) {
+                            amount = Number(income.amount_next);
+                          }
+                                return (
+                            <div 
+                              key={income.id} 
+                              className="text-xs bg-white dark:bg-gray-800 p-1.5 rounded border border-green-200 dark:border-green-800"
+                            >
+                              <div className="flex justify-between items-start">
+                                <span className="font-medium truncate flex-1 mr-2 text-foreground">
+                                  {income.name}
+                                </span>
+                                <span className="font-bold whitespace-nowrap text-green-600 dark:text-green-400">
+                                  +{formatCurrency(amount)}
+                                </span>
+                              </div>
+                                  </div>
+                                );
+                              })}
+                                </div>
+                              )}
+                            </div>
                 </div>
               )}
             </div>
           </div>
         </CardContent>
-      </Card>
-    );
+                          </Card>
+                        );
   };
 
   if (loading) {
-    return (
+                                return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  return (
+                              return (
     <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 p-3 md:p-6">
       <div className="space-y-1 md:space-y-2">
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">Abek</h1>
         <p className="text-sm md:text-base text-muted-foreground">Master your money</p>
-      </div>
+                      </div>
 
       {/* Abek: Close Out */}
       <Card className="border-2">
@@ -972,13 +1433,13 @@ const Survivor = () => {
             <div className="flex items-center gap-2 md:gap-3">
               <Calculator className="w-4 h-4 md:w-5 md:h-5 text-secondary" />
               <CardTitle className="text-base md:text-xl">Abek: Close Out</CardTitle>
-            </div>
+                    </div>
             {closeOutExpanded ? (
               <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
             ) : (
               <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
             )}
-          </div>
+                  </div>
         </CardHeader>
         {closeOutExpanded && (
           <CardContent className="space-y-4 md:space-y-6 pt-0 p-4 md:p-6">
@@ -988,9 +1449,9 @@ const Survivor = () => {
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                     <Wallet className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <h2 className="text-2xl md:text-3xl font-bold">My Tab</h2>
                 </div>
+                  <h2 className="text-2xl md:text-3xl font-bold">My Tab</h2>
+              </div>
 
                 {/* Total Tab - Full Width */}
                 <div className="w-full">
@@ -1000,7 +1461,7 @@ const Survivor = () => {
                 {/* Individual Bank Accounts - Responsive Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {bankAccountsCloseOutData.map((accountData) => renderCloseOutAccountCard(accountData))}
-                </div>
+              </div>
 
                 {unallocatedExpenses > 0 && (
                   <Card className="border-2 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 shadow-sm">
@@ -1011,7 +1472,7 @@ const Survivor = () => {
                     </CardContent>
                   </Card>
                 )}
-              </div>
+            </div>
             )}
 
             {/* My Credit Tab Section */}
