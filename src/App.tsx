@@ -9,7 +9,6 @@ import Dashboard from "./pages/Dashboard";
 import Income from "./pages/Income";
 import Coaster from "./pages/Coaster";
 import Bills from "./pages/Bills";
-import CloseOut from "./pages/CloseOut";
 import Survivor from "./pages/Survivor";
 import RealBank from "./pages/RealBank";
 import NotFound from "./pages/NotFound";
@@ -33,7 +32,6 @@ const App = () => (
             <Route path="coaster" element={<Coaster />} />
             <Route path="bills" element={<Bills />} />
             <Route path="realbank" element={<RealBank />} />
-            <Route path="closeout" element={<CloseOut />} />
             <Route path="survivor" element={<Survivor />} />
           </Route>
           <Route path="*" element={<NotFound />} />

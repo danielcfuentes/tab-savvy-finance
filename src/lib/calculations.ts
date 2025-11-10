@@ -239,6 +239,26 @@ export function getClosingTabPerAccount(
 }
 
 /**
+ * Calculate bills to close total per account
+ * Bills to close are bills due before the next paycheck
+ */
+export function getBillsToClosePerAccount(
+  bills: Bill[],
+  nextPaycheckDate: Date | null,
+  accountId: string
+): number {
+  if (!nextPaycheckDate) return 0;
+
+  return bills
+    .filter(bill => {
+      const billDate = new Date(bill.payment_date);
+      billDate.setHours(0, 0, 0, 0);
+      return bill.bank_account_id === accountId && billDate < nextPaycheckDate;
+    })
+    .reduce((sum, bill) => sum + Number(bill.amount_now), 0);
+}
+
+/**
  * Calculate open bills total per account
  * Open bills are bills due on or after the next paycheck
  */

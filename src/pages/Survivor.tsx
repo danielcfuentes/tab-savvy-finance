@@ -12,6 +12,7 @@ import {
   getRealBankBalance,
   getDailyBudget,
   getClosingTabPerAccount,
+  getBillsToClosePerAccount,
   getOpenBillsPerAccount,
   getNextPaycheckTotal,
   getNextPaycheckPerAccount,
@@ -64,7 +65,7 @@ const Survivor = () => {
   const [coasterItems, setCoasterItems] = useState<CoasterItem[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
-  const [endOfMonthExpanded, setEndOfMonthExpanded] = useState(false);
+  const [closeOutExpanded, setCloseOutExpanded] = useState(false);
   const [budgetExpanded, setBudgetExpanded] = useState(false);
   const { toast } = useToast();
 
@@ -140,7 +141,7 @@ const Survivor = () => {
   const coastingEstimate = getCoastingEstimate(realBalance, coastingDays);
   const fullMonthRanges = getFullMonthTabByRanges(coasterItems, bills, accountIds);
 
-  // Calculate per-account values
+  // Calculate per-account values for End of Month (Abek Tab)
   const accountData = accountIds.map(accountId => {
     const account = bankAccounts.find(acc => acc.id === accountId);
     const closingTab = getClosingTabPerAccount(bankAccounts, coasterItems, accountId);
@@ -158,7 +159,25 @@ const Survivor = () => {
     };
   });
 
-  // Calculate totals
+  // Calculate per-account values for Close Out
+  const closeOutAccountData = accountIds.map(accountId => {
+    const account = bankAccounts.find(acc => acc.id === accountId);
+    const accountRealBalance = getClosingTabPerAccount(bankAccounts, coasterItems, accountId);
+    const billsToClose = getBillsToClosePerAccount(bills, nextPaycheckDate, accountId);
+    const closedTab = accountRealBalance - billsToClose;
+    const openBills = getOpenBillsPerAccount(bills, nextPaycheckDate, accountId);
+    
+    return {
+      id: accountId,
+      name: account?.name || "Unknown Account",
+      realBalance: accountRealBalance,
+      billsToClose,
+      closedTab,
+      openBills,
+    };
+  });
+
+  // Calculate totals for End of Month (Abek Tab)
   const totalClosingTab = accountData.reduce((sum, acc) => sum + acc.closingTab, 0);
   const totalOpenBills = accountData.reduce((sum, acc) => sum + acc.openBills, 0);
   const totalNextPaycheck = accountData.reduce((sum, acc) => sum + acc.nextPaycheck, 0);
@@ -166,6 +185,12 @@ const Survivor = () => {
   // Abek Tab = Closing Tab - Open Bills + Next Paycheck - Coasting Estimate
   const survivorTab = totalClosingTab - totalOpenBills + totalNextPaycheck - totalCoastingEst;
   const monthsCovered = getMonthsCovered(survivorTab, fullMonthRanges.totals.total);
+
+  // Calculate totals for Close Out
+  const totalRealBalance = closeOutAccountData.reduce((sum, acc) => sum + acc.realBalance, 0);
+  const totalBillsToClose = closeOutAccountData.reduce((sum, acc) => sum + acc.billsToClose, 0);
+  const totalClosedTab = closeOutAccountData.reduce((sum, acc) => sum + acc.closedTab, 0);
+  const totalOpenBillsCloseOut = closeOutAccountData.reduce((sum, acc) => sum + acc.openBills, 0);
 
   // Budget calculations - group bills by category
   const budgetByCategory = bills.reduce((acc, bill) => {
@@ -201,30 +226,48 @@ const Survivor = () => {
         <p className="text-sm md:text-base text-muted-foreground">Master your money</p>
       </div>
 
-      {/* Abek: End of Month */}
+      {/* Abek: Close Out */}
       <Card className="border-2">
         <CardHeader
           className="cursor-pointer hover:bg-muted/50 transition-colors p-4 md:p-6"
-          onClick={() => setEndOfMonthExpanded(!endOfMonthExpanded)}
+          onClick={() => setCloseOutExpanded(!closeOutExpanded)}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-3">
               <Calculator className="w-4 h-4 md:w-5 md:h-5 text-secondary" />
-              <CardTitle className="text-base md:text-xl">Abek: End of Month</CardTitle>
+              <CardTitle className="text-base md:text-xl">Abek: Close Out</CardTitle>
             </div>
-            {endOfMonthExpanded ? (
+            {closeOutExpanded ? (
               <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
             ) : (
               <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
             )}
           </div>
         </CardHeader>
-        {endOfMonthExpanded && (
+        {closeOutExpanded && (
           <CardContent className="space-y-4 md:space-y-6 pt-0 p-4 md:p-6">
-            {/* Abek Tab Section */}
+            {/* Real Balance Total at Top */}
+            <div className="bg-green-100 dark:bg-green-900/30 p-3 md:p-4 rounded-lg">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                <span className="text-base md:text-lg font-bold flex items-center gap-2">
+                  Real Balance
+                  <InfoTooltip content="Your total account balance minus all coaster expenses. This represents your actual spending power across all accounts." />
+                </span>
+                <span className={cn(
+                  "text-xl md:text-2xl font-bold",
+                  totalRealBalance >= 0 
+                    ? "text-green-600 dark:text-green-400" 
+                    : "text-red-600 dark:text-red-400"
+                )}>
+                  ${formatCurrency(Math.abs(totalRealBalance))}
+                </span>
+              </div>
+            </div>
+
+            {/* Close Out Section */}
             <div className="space-y-3 md:space-y-4">
               <div className="bg-yellow-100 dark:bg-yellow-900/30 p-3 md:p-4 rounded-lg">
-                <h3 className="text-base md:text-lg font-bold text-foreground mb-3 md:mb-4">ABEK TAB</h3>
+                <h3 className="text-base md:text-lg font-bold text-foreground mb-3 md:mb-4">CLOSE OUT</h3>
                 
                 {/* Mobile: Stacked layout, Desktop: Grid layout */}
                 <div className="space-y-3 md:space-y-0">
@@ -232,25 +275,25 @@ const Survivor = () => {
                   <div className="hidden md:grid md:grid-cols-5 gap-2 text-xs md:text-sm font-semibold border-b pb-2 mb-2">
                     <div>Account</div>
                     <div className="text-right flex items-center justify-end gap-1">
-                      Closing Tab
-                      <InfoTooltip content="Your account balance minus any coaster expenses allocated to this account. This represents your available cash in this account." />
+                      Real Balance
+                      <InfoTooltip content="Your account balance minus any coaster expenses allocated to this account." />
                     </div>
                     <div className="text-right flex items-center justify-end gap-1">
-                      - Open Bills
+                      - Bills to Close
+                      <InfoTooltip content="Bills that are due before your next paycheck. These bills will be paid from your current balance." />
+                    </div>
+                    <div className="text-right flex items-center justify-end gap-1">
+                      = Closed Tab
+                      <InfoTooltip content="Your balance after paying bills scheduled before your next paycheck. This shows how much you'll have left after closing out these bills." />
+                    </div>
+                    <div className="text-right flex items-center justify-end gap-1">
+                      Open Bills
                       <InfoTooltip content="Bills that are due on or after your next paycheck. These are future expenses you need to plan for." />
-                    </div>
-                    <div className="text-right flex items-center justify-end gap-1">
-                      + Next Paycheck
-                      <InfoTooltip content="The total amount of your next paycheck that will be deposited into this account." />
-                    </div>
-                    <div className="text-right flex items-center justify-end gap-1">
-                      - Coasting Est.
-                      <InfoTooltip content="Estimated daily spending multiplied by remaining days until your next paycheck. This helps you plan your spending." />
                     </div>
                   </div>
                   
                   {/* Account Rows */}
-                  {accountData.map((acc) => (
+                  {closeOutAccountData.map((acc) => (
                     <div key={acc.id} className="md:grid md:grid-cols-5 gap-2 text-xs md:text-sm border-b md:border-b-0 pb-3 md:pb-0 last:border-b-0">
                       {/* Mobile: Card layout */}
                       <div className="md:hidden space-y-2">
@@ -258,11 +301,29 @@ const Survivor = () => {
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
                             <div className="text-muted-foreground flex items-center gap-1">
-                              Closing Tab
-                              <InfoTooltip content="Your account balance minus any coaster expenses allocated to this account. This represents your available cash in this account." />
+                              Real Balance
+                              <InfoTooltip content="Your account balance minus any coaster expenses allocated to this account." />
                             </div>
-                            <div className={cn("font-semibold", acc.closingTab < 0 && "text-yellow-600 dark:text-yellow-400")}>
-                              {formatCurrencyWithSign(acc.closingTab)}
+                            <div className={cn("font-semibold", acc.realBalance < 0 && "text-yellow-600 dark:text-yellow-400")}>
+                              {formatCurrencyWithSign(acc.realBalance)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground flex items-center gap-1">
+                              Bills to Close
+                              <InfoTooltip content="Bills that are due before your next paycheck. These bills will be paid from your current balance." />
+                            </div>
+                            <div className={cn("font-semibold", acc.billsToClose > 0 && "text-red-600 dark:text-red-400")}>
+                              {acc.billsToClose > 0 ? formatCurrencyWithSign(-acc.billsToClose) : "-"}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground flex items-center gap-1">
+                              Closed Tab
+                              <InfoTooltip content="Your balance after paying bills scheduled before your next paycheck. This shows how much you'll have left after closing out these bills." />
+                            </div>
+                            <div className={cn("font-semibold", acc.closedTab < 0 && "text-yellow-600 dark:text-yellow-400")}>
+                              {formatCurrencyWithSign(acc.closedTab)}
                             </div>
                           </div>
                           <div>
@@ -270,26 +331,8 @@ const Survivor = () => {
                               Open Bills
                               <InfoTooltip content="Bills that are due on or after your next paycheck. These are future expenses you need to plan for." />
                             </div>
-                            <div className={cn("font-semibold", acc.openBills < 0 && "text-yellow-600 dark:text-yellow-400")}>
-                              {formatCurrencyWithSign(-acc.openBills)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground flex items-center gap-1">
-                              Next Paycheck
-                              <InfoTooltip content="The total amount of your next paycheck that will be deposited into this account." />
-                            </div>
-                            <div className="font-semibold">
-                              {acc.nextPaycheck > 0 ? formatCurrency(acc.nextPaycheck) : "-"}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground flex items-center gap-1">
-                              Coasting Est.
-                              <InfoTooltip content="Estimated daily spending multiplied by remaining days until your next paycheck. This helps you plan your spending." />
-                            </div>
-                            <div className={cn("font-semibold", acc.coastingEst > 0 && "text-yellow-600 dark:text-yellow-400")}>
-                              {acc.coastingEst > 0 ? formatCurrencyWithSign(-acc.coastingEst) : "-"}
+                            <div className={cn("font-semibold", acc.openBills > 0 && "text-yellow-600 dark:text-yellow-400")}>
+                              {acc.openBills > 0 ? formatCurrencyWithSign(acc.openBills) : "-"}
                             </div>
                           </div>
                         </div>
@@ -297,17 +340,17 @@ const Survivor = () => {
                       {/* Desktop: Grid layout */}
                       <div className="hidden md:contents">
                         <div className="font-medium truncate">{acc.name}</div>
-                        <div className={cn("text-right", acc.closingTab < 0 && "text-yellow-600 dark:text-yellow-400")}>
-                          {formatCurrencyWithSign(acc.closingTab)}
+                        <div className={cn("text-right", acc.realBalance < 0 && "text-yellow-600 dark:text-yellow-400")}>
+                          {formatCurrencyWithSign(acc.realBalance)}
                         </div>
-                        <div className={cn("text-right", acc.openBills < 0 && "text-yellow-600 dark:text-yellow-400")}>
-                          {formatCurrencyWithSign(-acc.openBills)}
+                        <div className={cn("text-right", acc.billsToClose > 0 && "text-red-600 dark:text-red-400")}>
+                          {acc.billsToClose > 0 ? formatCurrencyWithSign(-acc.billsToClose) : "-"}
                         </div>
-                        <div className="text-right">
-                          {acc.nextPaycheck > 0 ? formatCurrency(acc.nextPaycheck) : "-"}
+                        <div className={cn("text-right", acc.closedTab < 0 && "text-yellow-600 dark:text-yellow-400")}>
+                          {formatCurrencyWithSign(acc.closedTab)}
                         </div>
-                        <div className={cn("text-right", acc.coastingEst > 0 && "text-yellow-600 dark:text-yellow-400")}>
-                          {acc.coastingEst > 0 ? formatCurrencyWithSign(-acc.coastingEst) : "-"}
+                        <div className={cn("text-right", acc.openBills > 0 && "text-yellow-600 dark:text-yellow-400")}>
+                          {acc.openBills > 0 ? formatCurrencyWithSign(acc.openBills) : "-"}
                         </div>
                       </div>
                     </div>
@@ -318,176 +361,30 @@ const Survivor = () => {
                     <div className="hidden md:block">Total</div>
                     <div className="md:hidden font-bold text-sm mb-2">Totals</div>
                     <div className="md:contents">
-                      <div className="md:hidden text-xs text-muted-foreground mb-1">Closing Tab</div>
-                      <div className="text-right md:text-right font-semibold">
-                        {formatCurrencyWithSign(totalClosingTab)}
+                      <div className="md:hidden text-xs text-muted-foreground mb-1">Real Balance</div>
+                      <div className={cn("text-right md:text-right font-semibold", totalRealBalance < 0 && "text-yellow-600 dark:text-yellow-400")}>
+                        {formatCurrencyWithSign(totalRealBalance)}
+                      </div>
+                    </div>
+                    <div className="md:contents">
+                      <div className="md:hidden text-xs text-muted-foreground mb-1">Bills to Close</div>
+                      <div className={cn("text-right md:text-right font-semibold", totalBillsToClose > 0 && "text-red-600 dark:text-red-400")}>
+                        {totalBillsToClose > 0 ? formatCurrencyWithSign(-totalBillsToClose) : "-"}
+                      </div>
+                    </div>
+                    <div className="md:contents">
+                      <div className="md:hidden text-xs text-muted-foreground mb-1">Closed Tab</div>
+                      <div className={cn("text-right md:text-right font-semibold", totalClosedTab < 0 && "text-yellow-600 dark:text-yellow-400")}>
+                        {formatCurrencyWithSign(totalClosedTab)}
                       </div>
                     </div>
                     <div className="md:contents">
                       <div className="md:hidden text-xs text-muted-foreground mb-1">Open Bills</div>
-                      <div className={cn("text-right md:text-right font-semibold", totalOpenBills > 0 && "text-yellow-600 dark:text-yellow-400")}>
-                        {formatCurrencyWithSign(-totalOpenBills)}
-                      </div>
-                    </div>
-                    <div className="md:contents">
-                      <div className="md:hidden text-xs text-muted-foreground mb-1">Next Paycheck</div>
-                      <div className="text-right md:text-right font-semibold">
-                        {formatCurrency(totalNextPaycheck)}
-                      </div>
-                    </div>
-                    <div className="md:contents">
-                      <div className="md:hidden text-xs text-muted-foreground mb-1">Coasting Est.</div>
-                      <div className={cn("text-right md:text-right font-semibold", totalCoastingEst > 0 && "text-yellow-600 dark:text-yellow-400")}>
-                        {totalCoastingEst > 0 ? formatCurrencyWithSign(-totalCoastingEst) : "-"}
+                      <div className={cn("text-right md:text-right font-semibold", totalOpenBillsCloseOut > 0 && "text-yellow-600 dark:text-yellow-400")}>
+                        {totalOpenBillsCloseOut > 0 ? formatCurrencyWithSign(totalOpenBillsCloseOut) : "-"}
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Abek Tab Total */}
-                  <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                      <span className="text-base md:text-lg font-bold flex items-center gap-2">
-                        Abek Tab
-                        <InfoTooltip content="Your estimated end-of-month cash balance. Calculated as: Closing Tab - Open Bills + Next Paycheck - Coasting Estimate. This is the most important number - it shows how much money you'll have at the end of the month." />
-                      </span>
-                      <span className="text-xl md:text-2xl font-bold text-secondary">
-                        ${formatCurrency(survivorTab)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Full Month Tab Section */}
-              <div className="space-y-3 md:space-y-4">
-                <h3 className="text-base md:text-lg font-bold text-foreground flex items-center gap-2">
-                  Full Month Tab
-                  <InfoTooltip content="A breakdown of all your expenses (bills and coaster items) organized by day ranges within the current month. This helps you see when expenses occur throughout the month." />
-                </h3>
-                <div className="overflow-x-auto -mx-3 md:mx-0">
-                  <div className="min-w-full px-3 md:px-0">
-                    {/* Mobile: Stacked cards, Desktop: Table */}
-                    <div className="md:hidden space-y-2">
-                      {[
-                        { label: "1-5", key: "range1_5" },
-                        { label: "6-10", key: "range6_10" },
-                        { label: "11-15", key: "range11_15" },
-                        { label: "16-20", key: "range16_20" },
-                        { label: "21-25", key: "range21_25" },
-                        { label: "25-30/31", key: "range25_31" },
-                      ].map(({ label, key }) => {
-                        const totalValue = fullMonthRanges.totals[key as keyof typeof fullMonthRanges.totals] as number;
-                        return (
-                          <Card key={key} className="p-3 border">
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="font-semibold text-sm">{label}</span>
-                              <span className="text-sm font-bold">
-                                {totalValue !== 0 ? formatCurrencyWithSign(-totalValue) : "-"}
-                              </span>
-                            </div>
-                            <div className="space-y-1 text-xs">
-                              {accountIds.slice(0, 3).map(accountId => {
-                                const account = bankAccounts.find(acc => acc.id === accountId);
-                                const accountData = fullMonthRanges.byAccount[accountId];
-                                const value = accountData ? accountData[key as keyof typeof accountData] as number : 0;
-                                if (value === 0) return null;
-                                return (
-                                  <div key={accountId} className="flex justify-between text-muted-foreground">
-                                    <span>{account?.name || "Unknown"}</span>
-                                    <span>{formatCurrencyWithSign(-value)}</span>
-                                  </div>
-                                );
-                              })}
-                              {accountIds.length > 3 && (
-                                <div className="text-muted-foreground text-xs pt-1">
-                                  +{accountIds.length - 3} more account{accountIds.length - 3 !== 1 ? "s" : ""}
-                                </div>
-                              )}
-                            </div>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                    
-                    {/* Desktop: Table layout */}
-                    <div className="hidden md:block">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b">
-                              <th className="text-left py-2 pr-4 font-semibold">Day Range</th>
-                              {accountIds.map(accountId => {
-                                const account = bankAccounts.find(acc => acc.id === accountId);
-                                return (
-                                  <th key={accountId} className="text-right py-2 px-2 font-semibold text-xs">
-                                    {account?.name || "Unknown"}
-                                  </th>
-                                );
-                              })}
-                              <th className="text-right py-2 pl-2 font-bold">Total</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {[
-                              { label: "1-5", key: "range1_5" },
-                              { label: "6-10", key: "range6_10" },
-                              { label: "11-15", key: "range11_15" },
-                              { label: "16-20", key: "range16_20" },
-                              { label: "21-25", key: "range21_25" },
-                              { label: "25-30/31", key: "range25_31" },
-                            ].map(({ label, key }) => {
-                              const totalValue = fullMonthRanges.totals[key as keyof typeof fullMonthRanges.totals] as number;
-                              return (
-                                <tr key={key} className="border-b">
-                                  <td className="py-2 pr-4 font-medium">{label}</td>
-                                  {accountIds.map(accountId => {
-                                    const accountData = fullMonthRanges.byAccount[accountId];
-                                    const value = accountData ? accountData[key as keyof typeof accountData] as number : 0;
-                                    return (
-                                      <td key={accountId} className="text-right py-2 px-2">
-                                        {value !== 0 ? formatCurrencyWithSign(-value) : "-"}
-                                      </td>
-                                    );
-                                  })}
-                                  <td className="text-right py-2 pl-2 font-medium">
-                                    {totalValue !== 0 ? formatCurrencyWithSign(-totalValue) : "-"}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                            <tr className="border-t-2 font-bold">
-                              <td className="py-2 pr-4">Total</td>
-                              {accountIds.map(accountId => {
-                                const accountData = fullMonthRanges.byAccount[accountId];
-                                const total = accountData ? accountData.total : 0;
-                                return (
-                                  <td key={accountId} className="text-right py-2 px-2">
-                                    {total !== 0 ? `$${formatCurrency(total)}` : "-"}
-                                  </td>
-                                );
-                              })}
-                              <td className="text-right py-2 pl-2 text-secondary">
-                                ${formatCurrency(fullMonthRanges.totals.total)}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Number of Months Covered */}
-              <div className="bg-secondary/10 p-3 md:p-4 rounded-lg">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                  <span className="text-base md:text-lg font-bold flex items-center gap-2">
-                    Number of Months Covered
-                    <InfoTooltip content="This is the most important number in the entire app! It shows how many months your Abek Tab can cover based on your Full Month Tab expenses. For example, 1.43 means you can cover 1.43 months of expenses with your current balance." />
-                  </span>
-                  <span className="text-xl md:text-2xl font-bold text-secondary">
-                    {formatCurrency(monthsCovered)} x
-                  </span>
                 </div>
               </div>
             </div>

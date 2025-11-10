@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Wallet, TrendingUp, Beer, FileText, CheckCircle, LifeBuoy, DollarSign } from "lucide-react";
+import { Wallet, TrendingUp, Beer, FileText, LifeBuoy, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Profile from "./Profile";
 
@@ -12,7 +12,6 @@ const AppNav = () => {
     { name: "Coaster", path: "/coaster", icon: Beer },
     { name: "Real Bank", path: "/realbank", icon: DollarSign },
     { name: "Bills", path: "/bills", icon: FileText },
-    { name: "Close Out", path: "/closeout", icon: CheckCircle },
     { name: "Abek", path: "/survivor", icon: LifeBuoy },
   ];
 
