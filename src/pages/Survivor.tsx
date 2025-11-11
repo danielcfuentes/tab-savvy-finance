@@ -275,10 +275,26 @@ const Survivor = () => {
   const totalCreditAbekBalance = totalCreditClosedTab - totalCreditOpenBills + totalCreditNextPaycheck;
 
   // Calculate combined Abek Balance for Months Covered (from Close Out)
-  // Credit tab should decrease the total (subtract, not add)
-  // Always subtract the absolute value of credit balance to ensure it reduces the total
+  // Based on screenshot: Survivor Tab = Closing Tab - Open Bills + Next Paycheck - Coasting Estimate
+  // For Close Out: Abek Balance = Closed Out - Open Bills + Future Paychecks
+  // But we need to match the Survivor Tab formula which includes Coasting Estimate
+  // So we use: (Closed Out - Coasting Estimate) - Open Bills + Future Paychecks
+  // OR we can use the survivorTab calculation which already has the correct formula
+  // However, survivorTab uses getClosingTabPerAccount which handles credit differently
+  // For Close Out, we need to combine bank and credit properly
+  
+  // Calculate total coasting estimate for all accounts (needed for Survivor Tab formula)
+  const totalCoastingEstimate = accountData.reduce((sum, acc) => sum + acc.coastingEst, 0);
+  
+  // Use the Close Out Abek Balance but ensure credit reduces the total
+  // Credit accounts should decrease the combined balance
   const combinedAbekBalance = totalBankAbekBalance - Math.abs(totalCreditAbekBalance);
-  const monthsCoveredFromCloseOut = getMonthsCovered(combinedAbekBalance, fullMonthRanges.totals.total);
+  
+  // For months covered, we should use the same formula as Survivor Tab
+  // Survivor Tab = Closing Tab - Open Bills + Next Paycheck - Coasting Estimate
+  // But we're using Close Out values, so we need to adjust
+  // Actually, let's use survivorTab which already has the correct calculation
+  const monthsCoveredFromCloseOut = getMonthsCovered(survivorTab, fullMonthRanges.totals.total);
 
   // Budget calculations - group bills by category
   const budgetByCategory = bills.reduce((acc, bill) => {
@@ -1559,19 +1575,27 @@ const Survivor = () => {
                 <Card className="border-2">
                   <CardContent className="p-4 space-y-2">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Abek Balance
+                      Abek Tab
                     </p>
                     <p className="text-xl md:text-2xl font-bold text-foreground">
-                      ${formatCurrency(combinedAbekBalance)}
+                      ${formatCurrency(survivorTab)}
                     </p>
                     <div className="text-xs text-muted-foreground space-y-1 pt-2">
                       <div className="flex justify-between">
-                        <span>My Tab:</span>
-                        <span className="font-medium">${formatCurrency(totalBankAbekBalance)}</span>
+                        <span>Closing Tab:</span>
+                        <span className="font-medium">${formatCurrency(totalClosingTab)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>My Credit Tab:</span>
-                        <span className="font-medium text-red-600 dark:text-red-400">-${formatCurrency(Math.abs(totalCreditAbekBalance))}</span>
+                        <span>- Open Bills:</span>
+                        <span className="font-medium text-yellow-600 dark:text-yellow-400">(${formatCurrency(totalOpenBills)})</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>+ Next Paycheck:</span>
+                        <span className="font-medium text-green-600 dark:text-green-400">${formatCurrency(totalNextPaycheck)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>- Coasting Estimate:</span>
+                        <span className="font-medium text-red-600 dark:text-red-400">(${formatCurrency(totalCoastingEst)})</span>
                       </div>
                     </div>
                   </CardContent>
