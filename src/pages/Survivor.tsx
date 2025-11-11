@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ChevronDown, ChevronRight, Calculator, PieChart, Info } from "lucide-react";
+import { Loader2, ChevronDown, ChevronRight, Calculator, PieChart, Info, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -68,6 +68,7 @@ const Survivor = () => {
   const [loading, setLoading] = useState(true);
   const [closeOutExpanded, setCloseOutExpanded] = useState(false);
   const [budgetExpanded, setBudgetExpanded] = useState(false);
+  const [multipleExpanded, setMultipleExpanded] = useState(false);
   const [expandedCloseOutAccounts, setExpandedCloseOutAccounts] = useState<Set<string>>(new Set());
   const [expandedBillsToClose, setExpandedBillsToClose] = useState<Set<string>>(new Set());
   const [expandedOpenBills, setExpandedOpenBills] = useState<Set<string>>(new Set());
@@ -272,6 +273,12 @@ const Survivor = () => {
   const totalCreditOpenBills = creditAccountsCloseOutData.reduce((sum, acc) => sum + acc.openBills, 0);
   const totalCreditNextPaycheck = creditAccountsCloseOutData.reduce((sum, acc) => sum + (acc.nextPaycheck || 0), 0);
   const totalCreditAbekBalance = totalCreditClosedTab - totalCreditOpenBills + totalCreditNextPaycheck;
+
+  // Calculate combined Abek Balance for Months Covered (from Close Out)
+  // Credit tab should decrease the total (subtract, not add)
+  // Always subtract the absolute value of credit balance to ensure it reduces the total
+  const combinedAbekBalance = totalBankAbekBalance - Math.abs(totalCreditAbekBalance);
+  const monthsCoveredFromCloseOut = getMonthsCovered(combinedAbekBalance, fullMonthRanges.totals.total);
 
   // Budget calculations - group bills by category
   const budgetByCategory = bills.reduce((acc, bill) => {
@@ -1507,6 +1514,91 @@ const Survivor = () => {
                 </CardContent>
               </Card>
             )}
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Abek: Multiple */}
+      <Card className="border-2 shadow-lg">
+        <CardHeader
+          className="cursor-pointer hover:bg-muted/50 transition-colors p-4 md:p-6"
+          onClick={() => setMultipleExpanded(!multipleExpanded)}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 md:gap-3">
+              <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-secondary" />
+              <CardTitle className="text-base md:text-xl">Abek: Multiple</CardTitle>
+            </div>
+            {multipleExpanded ? (
+              <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
+            )}
+          </div>
+        </CardHeader>
+        {multipleExpanded && (
+          <CardContent className="space-y-4 md:space-y-6 pt-0 p-4 md:p-6">
+            <div className="space-y-4">
+              <div className="text-center space-y-2">
+                <p className="text-sm md:text-base text-muted-foreground font-medium">
+                  Number of Months Covered
+                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <p className="text-4xl md:text-6xl font-bold text-primary">
+                    {monthsCoveredFromCloseOut.toFixed(2)}
+                  </p>
+                  <span className="text-2xl md:text-3xl font-semibold text-muted-foreground">x</span>
+                </div>
+                <p className="text-xs md:text-sm text-muted-foreground pt-2">
+                  The most important number in the entire app
+                </p>
+              </div>
+
+              {/* Breakdown */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                <Card className="border-2">
+                  <CardContent className="p-4 space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Abek Balance
+                    </p>
+                    <p className="text-xl md:text-2xl font-bold text-foreground">
+                      ${formatCurrency(combinedAbekBalance)}
+                    </p>
+                    <div className="text-xs text-muted-foreground space-y-1 pt-2">
+                      <div className="flex justify-between">
+                        <span>My Tab:</span>
+                        <span className="font-medium">${formatCurrency(totalBankAbekBalance)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>My Credit Tab:</span>
+                        <span className="font-medium text-red-600 dark:text-red-400">-${formatCurrency(Math.abs(totalCreditAbekBalance))}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-2">
+                  <CardContent className="p-4 space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Full Month Total
+                    </p>
+                    <p className="text-xl md:text-2xl font-bold text-foreground">
+                      ${formatCurrency(fullMonthRanges.totals.total)}
+                    </p>
+                    <p className="text-xs text-muted-foreground pt-2">
+                      Total expenses for the current month
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Formula */}
+              <div className="pt-4 border-t">
+                <p className="text-xs md:text-sm text-muted-foreground text-center">
+                  <span className="font-semibold">Formula:</span> Months Covered = Abek Balance ÷ Full Month Total
+                </p>
+              </div>
+            </div>
           </CardContent>
         )}
       </Card>
