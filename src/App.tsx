@@ -4,6 +4,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
+import About from "./pages/About";
+import HowItWorks from "./pages/HowItWorks";
+import Testimonials from "./pages/Testimonials";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Income from "./pages/Income";
@@ -24,8 +27,14 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Public Website Pages */}
           <Route path="/" element={<Landing />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/testimonials" element={<Testimonials />} />
           <Route path="/auth" element={<Auth />} />
+          
+          {/* Protected App Routes */}
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="income" element={<Income />} />

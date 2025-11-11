@@ -24,7 +24,7 @@ const AppNav = () => {
       {/* Desktop Navigation */}
       <nav className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-card border-r flex-col p-4 shadow-card">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-foreground">My Budget Bar</h2>
+          <h2 className="text-2xl font-bold text-foreground">Abek</h2>
           <p className="text-sm text-muted-foreground">Your Financial Tab</p>
         </div>
         
