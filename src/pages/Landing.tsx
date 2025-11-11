@@ -103,7 +103,7 @@ const Landing = () => {
                 <Button 
                   variant="hero" 
                   size="lg" 
-                  onClick={() => navigate("/auth")}
+                  onClick={() => navigate("/subscribe")}
                   className="text-lg group shadow-lg hover:shadow-xl"
                 >
                   Get Started
@@ -318,23 +318,15 @@ const Landing = () => {
               <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
                 No hidden fees. Cancel anytime. Simple, transparent pricing.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex justify-center">
                 <Button 
                   variant="hero" 
                   size="lg"
-                  onClick={() => navigate("/auth")}
+                  onClick={() => navigate("/subscribe")}
                   className="text-lg shadow-lg"
                 >
-                  Get Started
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="lg"
-                  onClick={() => window.location.href = "/auth?action=subscribe"}
-                  className="border-2"
-                >
                   Subscribe Now
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
             </CardContent>
@@ -385,13 +377,13 @@ const Landing = () => {
                   Sign In
                 </button>
                 <button 
-                  onClick={() => navigate("/auth")}
+                  onClick={() => navigate("/subscribe")}
                   className="block text-muted-foreground hover:text-foreground transition-smooth text-left"
                 >
                   Get Started
                 </button>
                 <button 
-                  onClick={() => window.location.href = "/auth?action=subscribe"}
+                  onClick={() => navigate("/subscribe")}
                   className="block text-muted-foreground hover:text-foreground transition-smooth text-left"
                 >
                   Subscribe

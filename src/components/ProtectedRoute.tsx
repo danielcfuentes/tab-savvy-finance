@@ -16,19 +16,57 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate("/auth");
-      } else {
-        setLoading(false);
+        return;
       }
+
+      // Check if user has active subscription
+      const { data: subscription, error } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .eq("status", "active")
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        // PGRST116 is "not found"
+        console.error("Error checking subscription:", error);
+      }
+
+      if (!subscription || new Date(subscription.current_period_end) <= new Date()) {
+        // No active subscription, redirect to subscribe
+        navigate("/subscribe");
+        return;
+      }
+
+      setLoading(false);
     };
 
     checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!session) {
         navigate("/auth");
-      } else {
-        setLoading(false);
+        return;
       }
+
+      // Check subscription status
+      const { data: sub, error } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .eq("status", "active")
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error checking subscription:", error);
+      }
+
+      if (!sub || new Date(sub.current_period_end) <= new Date()) {
+        navigate("/subscribe");
+        return;
+      }
+
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
