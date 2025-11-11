@@ -126,61 +126,28 @@ const Subscribe = () => {
     }
 
     try {
-      // TODO: Integrate with Stripe or PayPal here
-      // For now, we'll create a subscription record directly
-      // In production, you would:
-      // 1. Create a checkout session with Stripe/PayPal
-      // 2. Redirect user to payment page
-      // 3. Handle webhook to update subscription status
-
-      // For now, create a subscription directly (for testing)
-      // In production, this should be done via webhook after payment confirmation
-      const periodStart = new Date();
-      const periodEnd = new Date();
-      periodEnd.setMonth(periodEnd.getMonth() + 1); // 1 month from now
-
-      const { error: insertError } = await supabase
-        .from("subscriptions")
-        .insert({
-          user_id: session.user.id,
-          status: "active",
-          current_period_start: periodStart.toISOString(),
-          current_period_end: periodEnd.toISOString(),
-          cancel_at_period_end: false,
-          payment_provider: "stripe", // or "paypal"
-        });
-
-      if (insertError) {
-        // If subscription already exists, update it
-        if (insertError.code === "23505") {
-          const { error: updateError } = await supabase
-            .from("subscriptions")
-            .update({
-              status: "active",
-              current_period_start: periodStart.toISOString(),
-              current_period_end: periodEnd.toISOString(),
-              cancel_at_period_end: false,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", session.user.id);
-
-          if (updateError) {
-            throw updateError;
-          }
-        } else {
-          throw insertError;
-        }
+      // Call Supabase Edge Function to create Stripe checkout session
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (!authSession) {
+        throw new Error("Not authenticated");
       }
 
-      toast({
-        title: "Subscription activated!",
-        description: "Welcome to Abek! Redirecting to your dashboard...",
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        headers: {
+          Authorization: `Bearer ${authSession.access_token}`,
+        },
       });
 
-      // Redirect to dashboard
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 1500);
+      if (error) {
+        throw error;
+      }
+
+      if (data?.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
     } catch (error: any) {
       console.error("Subscription error:", error);
       toast({
@@ -188,7 +155,6 @@ const Subscribe = () => {
         title: "Subscription failed",
         description: error.message || "Something went wrong. Please try again.",
       });
-    } finally {
       setIsLoading(false);
     }
   };

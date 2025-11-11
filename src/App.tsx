@@ -9,6 +9,7 @@ import HowItWorks from "./pages/HowItWorks";
 import Testimonials from "./pages/Testimonials";
 import Auth from "./pages/Auth";
 import Subscribe from "./pages/Subscribe";
+import SubscribeSuccess from "./pages/SubscribeSuccess";
 import Dashboard from "./pages/Dashboard";
 import Income from "./pages/Income";
 import Coaster from "./pages/Coaster";
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/testimonials" element={<Testimonials />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/subscribe" element={<Subscribe />} />
+          <Route path="/subscribe/success" element={<SubscribeSuccess />} />
           
           {/* Protected App Routes */}
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
