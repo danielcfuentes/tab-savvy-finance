@@ -80,6 +80,7 @@ const Survivor = () => {
   const [expandedAbekBalance, setExpandedAbekBalance] = useState<Set<string>>(new Set());
   const [expandedFuturePaychecks, setExpandedFuturePaychecks] = useState<Set<string>>(new Set());
   const [expandedBudgetCategories, setExpandedBudgetCategories] = useState<Set<string>>(new Set());
+  const [expandedMultipleAbekBalance, setExpandedMultipleAbekBalance] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -1598,99 +1599,6 @@ const Survivor = () => {
         )}
       </Card>
 
-      {/* Abek: Multiple */}
-      <Card className="border-2 shadow-lg">
-        <CardHeader
-          className="cursor-pointer hover:bg-muted/50 transition-colors p-4 md:p-6"
-          onClick={() => setMultipleExpanded(!multipleExpanded)}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 md:gap-3">
-              <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-secondary" />
-              <CardTitle className="text-base md:text-xl">Abek: Multiple</CardTitle>
-            </div>
-            {multipleExpanded ? (
-              <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
-            )}
-          </div>
-        </CardHeader>
-        {multipleExpanded && (
-          <CardContent className="space-y-4 md:space-y-6 pt-0 p-4 md:p-6">
-            <div className="space-y-4">
-              <div className="text-center space-y-2">
-                <p className="text-sm md:text-base text-muted-foreground font-medium">
-                  Number of Months Covered
-                </p>
-                <div className="flex items-center justify-center gap-2">
-                  <p className="text-4xl md:text-6xl font-bold text-primary">
-                    {monthsCoveredFromCloseOut.toFixed(2)}
-                  </p>
-                  <span className="text-2xl md:text-3xl font-semibold text-muted-foreground">x</span>
-                </div>
-                <p className="text-xs md:text-sm text-muted-foreground pt-2">
-                  The most important number in the entire app
-                </p>
-              </div>
-
-              {/* Breakdown */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                <Card className="border-2">
-                  <CardContent className="p-4 space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Abek Tab
-                    </p>
-                    <p className="text-xl md:text-2xl font-bold text-foreground">
-                      ${formatCurrency(survivorTab)}
-                    </p>
-                    <div className="text-xs text-muted-foreground space-y-1 pt-2">
-                      <div className="flex justify-between">
-                        <span>Closing Tab:</span>
-                        <span className="font-medium">${formatCurrency(totalClosingTab)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>- Open Bills:</span>
-                        <span className="font-medium text-yellow-600 dark:text-yellow-400">(${formatCurrency(totalOpenBills)})</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>+ Next Paycheck:</span>
-                        <span className="font-medium text-green-600 dark:text-green-400">${formatCurrency(totalNextPaycheck)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>- Coasting Estimate:</span>
-                        <span className="font-medium text-red-600 dark:text-red-400">(${formatCurrency(totalCoastingEst)})</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-2">
-                  <CardContent className="p-4 space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Full Month Total
-                    </p>
-                    <p className="text-xl md:text-2xl font-bold text-foreground">
-                      ${formatCurrency(fullMonthRanges.totals.total)}
-                    </p>
-                    <p className="text-xs text-muted-foreground pt-2">
-                      Total expenses for the current month
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Formula */}
-              <div className="pt-4 border-t">
-                <p className="text-xs md:text-sm text-muted-foreground text-center">
-                  <span className="font-semibold">Formula:</span> Months Covered = Abek Balance ÷ Full Month Total
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
       {/* Abek: Full Month */}
       <Card className="border-2">
         <CardHeader
@@ -1887,6 +1795,154 @@ const Survivor = () => {
                       <InfoTooltip content="Your daily spending budget. Divide your Coaster Tab by the number of days until your next paycheck to see how much you can spend each day." />
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Abek: Multiple */}
+      <Card className="border-2 shadow-lg">
+        <CardHeader
+          className="cursor-pointer hover:bg-muted/50 transition-colors p-4 md:p-6"
+          onClick={() => setMultipleExpanded(!multipleExpanded)}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 md:gap-3">
+              <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-secondary" />
+              <CardTitle className="text-base md:text-xl">Abek: Multiple</CardTitle>
+            </div>
+            {multipleExpanded ? (
+              <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
+            )}
+          </div>
+        </CardHeader>
+        {multipleExpanded && (
+          <CardContent className="p-0 animate-in slide-in-from-top-2 duration-200">
+            <div className="divide-y divide-border">
+              {/* Abek Balance Section */}
+              <div 
+                className="p-4 cursor-pointer transition-all duration-200 group hover:bg-muted/30 rounded"
+                onClick={() => setExpandedMultipleAbekBalance(!expandedMultipleAbekBalance)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                      Abek Balance
+                    </h3>
+                    <div className="text-xl md:text-2xl font-bold text-foreground">
+                      ${formatCurrency(combinedAbekBalance)}
+                    </div>
+                  </div>
+                  <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                    {expandedMultipleAbekBalance ? (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+                {expandedMultipleAbekBalance && (
+                  <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">My Tab:</span>
+                      <span className="font-medium text-foreground">
+                        ${formatCurrency(totalBankAbekBalance)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">My Credit Tab:</span>
+                      <span className="font-medium text-red-600 dark:text-red-400">
+                        ({formatCurrency(Math.abs(totalCreditAbekBalance))})
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-border font-semibold">
+                      <span className="text-muted-foreground">Final Abek Balance:</span>
+                      <span className="text-foreground">
+                        ${formatCurrency(combinedAbekBalance)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Full Month Tab Section */}
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Full Month Tab
+                  </h3>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">1-5</span>
+                    <span className="font-medium text-red-600 dark:text-red-400">
+                      ({formatCurrency(fullMonthRanges.totals.range1_5)})
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">6-10</span>
+                    <span className="font-medium text-red-600 dark:text-red-400">
+                      ({formatCurrency(fullMonthRanges.totals.range6_10)})
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">11-15</span>
+                    <span className="font-medium text-red-600 dark:text-red-400">
+                      ({formatCurrency(fullMonthRanges.totals.range11_15)})
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">16-20</span>
+                    <span className="font-medium text-red-600 dark:text-red-400">
+                      ({formatCurrency(fullMonthRanges.totals.range16_20)})
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">21-25</span>
+                    <span className="font-medium text-red-600 dark:text-red-400">
+                      ({formatCurrency(fullMonthRanges.totals.range21_25)})
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">25-30/31</span>
+                    <span className="font-medium text-red-600 dark:text-red-400">
+                      ({formatCurrency(fullMonthRanges.totals.range25_31)})
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t border-border font-semibold">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="text-foreground">
+                      ({formatCurrency(fullMonthRanges.totals.total)})
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Number of Months Covered Section */}
+              <div className="p-4 bg-muted/20">
+                <div className="text-center space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Number of Months Covered
+                  </p>
+                  <div className="flex items-center justify-center gap-2">
+                    <p className="text-4xl md:text-6xl font-bold text-primary">
+                      {fullMonthRanges.totals.total > 0 
+                        ? (combinedAbekBalance / fullMonthRanges.totals.total).toFixed(2)
+                        : '0.00'
+                      }
+                    </p>
+                    <span className="text-2xl md:text-3xl font-semibold text-muted-foreground">x</span>
+                  </div>
+                  <p className="text-xs md:text-sm text-muted-foreground pt-2">
+                    The most important number in the entire app
+                  </p>
+                  <p className="text-xs text-muted-foreground pt-2">
+                    <span className="font-semibold">Formula:</span> Months Covered = Abek Balance ÷ Full Month Total
+                  </p>
                 </div>
               </div>
             </div>
