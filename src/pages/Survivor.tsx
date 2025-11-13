@@ -20,6 +20,7 @@ import {
   getCoastingEstimatePerAccount,
   getCoastingEstimateForAbekBalance,
   getFullMonthTabByRanges,
+  getFullMonthIncome,
   getMonthsCovered,
   type BankAccount,
   type IncomeItem,
@@ -78,6 +79,7 @@ const Survivor = () => {
   const [expandedClosedOut, setExpandedClosedOut] = useState<Set<string>>(new Set());
   const [expandedAbekBalance, setExpandedAbekBalance] = useState<Set<string>>(new Set());
   const [expandedFuturePaychecks, setExpandedFuturePaychecks] = useState<Set<string>>(new Set());
+  const [expandedBudgetCategories, setExpandedBudgetCategories] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -303,8 +305,18 @@ const Survivor = () => {
   // Actually, let's use survivorTab which already has the correct calculation
   const monthsCoveredFromCloseOut = getMonthsCovered(survivorTab, fullMonthRanges.totals.total);
 
-  // Budget calculations - group bills by category
-  const budgetByCategory = bills.reduce((acc, bill) => {
+  // Budget calculations - group bills by category for full month
+  const today = startOfToday();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+  
+  // Filter bills for current month
+  const billsThisMonth = bills.filter(bill => {
+    const billDate = new Date(bill.payment_date);
+    return billDate.getFullYear() === currentYear && billDate.getMonth() === currentMonth;
+  });
+  
+  const budgetByCategory = billsThisMonth.reduce((acc, bill) => {
     const category = bill.category || "Uncategorized";
     if (!acc[category]) {
       acc[category] = {
@@ -318,9 +330,23 @@ const Survivor = () => {
     return acc;
   }, {} as Record<string, { category: string; total: number; bills: Bill[] }>);
 
-  const totalIncome = nextPaycheckTotal || incomes.reduce((sum, inc) => sum + Number(inc.amount_now), 0);
-  const totalBudget = Object.values(budgetByCategory).reduce((sum, cat) => sum + cat.total, 0);
-  const coasterTab = totalIncome - totalBudget;
+  // Calculate full month income
+  const fullMonthIncome = getFullMonthIncome(incomes);
+  const totalBudget = fullMonthRanges.totals.total; // Use full month total from ranges
+  const coasterTab = fullMonthIncome - totalBudget;
+  
+  // Category order: Rent, Need, Want, Debt, Savings, Investment
+  const categoryOrder = ['Rent', 'Need', 'Want', 'Debt', 'Savings', 'Investment'];
+  
+  const toggleBudgetCategoryExpanded = (category: string) => {
+    const newExpanded = new Set(expandedBudgetCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedBudgetCategories(newExpanded);
+  };
 
   // Helper functions for Close Out bills and expenses
   const getBillsToCloseForAccount = (accountId: string) => {
@@ -1665,7 +1691,7 @@ const Survivor = () => {
         )}
       </Card>
 
-      {/* Abek: Budget */}
+      {/* Abek: Full Month */}
       <Card className="border-2">
         <CardHeader
           className="cursor-pointer hover:bg-muted/50 transition-colors p-4 md:p-6"
@@ -1674,7 +1700,7 @@ const Survivor = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-3">
               <PieChart className="w-4 h-4 md:w-5 md:h-5 text-secondary" />
-              <CardTitle className="text-base md:text-xl">Abek: Budget</CardTitle>
+              <CardTitle className="text-base md:text-xl">Abek: Full Month</CardTitle>
             </div>
             {budgetExpanded ? (
               <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
@@ -1684,98 +1710,187 @@ const Survivor = () => {
           </div>
         </CardHeader>
         {budgetExpanded && (
-          <CardContent className="space-y-4 md:space-y-6 pt-0 p-4 md:p-6">
-            {/* Income Section */}
-            <div className="space-y-2">
-              <h3 className="text-base md:text-lg font-bold text-foreground flex items-center gap-2">
-                INCOME
-                <InfoTooltip content="Your total monthly income from all sources. This is typically your next paycheck amount or the sum of all income items for the current month." />
-              </h3>
-              <div className="text-xl md:text-2xl font-bold text-secondary">
-                ${formatCurrency(totalIncome)}
+          <CardContent className="p-0 animate-in slide-in-from-top-2 duration-200">
+            <div className="divide-y divide-border">
+              {/* Income Section */}
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                    INCOME
+                    <InfoTooltip content="Your total monthly income from all sources for the current month." />
+                  </h3>
+                </div>
+                <div className="text-xl md:text-2xl font-bold text-secondary">
+                  ${formatCurrency(fullMonthIncome)}
+                </div>
               </div>
-            </div>
 
-            {/* Bills & Savings Section */}
-            <div className="space-y-3 md:space-y-4">
-              <h3 className="text-base md:text-lg font-bold text-foreground flex items-center gap-2">
-                BILLS & SAVINGS
-                <InfoTooltip content="All your monthly bills and savings contributions, organized by category. This shows where your money is going and helps you understand your spending patterns." />
-              </h3>
-              
-              <div className="space-y-2 md:space-y-3">
-                {Object.values(budgetByCategory)
-                  .sort((a, b) => b.total - a.total)
-                  .map((category) => {
-                    const percentage = totalIncome > 0 ? (category.total / totalIncome) * 100 : 0;
+              {/* Bills & Savings Section - Expandable Categories */}
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                    BILLS & SAVINGS
+                    <InfoTooltip content="All your monthly bills and savings contributions, organized by category. This shows where your money is going and helps you understand your spending patterns." />
+                  </h3>
+                </div>
+                
+                <div className="space-y-2">
+                  {/* Show all categories in specified order, even if empty */}
+                  {categoryOrder.map((categoryName) => {
+                    const category = budgetByCategory[categoryName] || {
+                      category: categoryName,
+                      total: 0,
+                      bills: [],
+                    };
+                    const percentage = fullMonthIncome > 0 ? (category.total / fullMonthIncome) * 100 : 0;
+                    const isExpanded = expandedBudgetCategories.has(category.category);
                     return (
-                      <Card key={category.category} className="border p-3 md:p-4">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-0 mb-2 md:mb-3">
-                          <div className="flex-1">
-                            <h4 className="font-bold text-sm md:text-base text-foreground">{category.category}</h4>
-                            <p className="text-xs md:text-sm text-muted-foreground">
-                              {category.bills.length} item{category.bills.length !== 1 ? "s" : ""}
-                            </p>
-                          </div>
-                          <div className="text-right w-full md:w-auto">
-                            <div className="text-lg md:text-xl font-bold text-foreground">
-                              ${formatCurrency(category.total)}
+                      <div
+                        key={category.category}
+                        className={cn(
+                          "cursor-pointer transition-all duration-200 group border-l-4 rounded",
+                          "bg-gradient-to-br from-muted/30 to-muted/10 hover:from-muted/40 hover:to-muted/20 border-muted-foreground/20"
+                        )}
+                        onClick={() => toggleBudgetCategoryExpanded(category.category)}
+                      >
+                        <div className="p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">
+                                {category.category}
+                              </p>
+                              <div className="flex items-center gap-3">
+                                <p className="text-lg md:text-xl font-bold text-foreground">
+                                  ${formatCurrency(category.total)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatCurrency(percentage)}%
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {category.bills.length} item{category.bills.length !== 1 ? "s" : ""}
+                                </p>
+                              </div>
                             </div>
-                            <div className="text-xs md:text-sm text-muted-foreground">
-                              {formatCurrency(percentage)}%
+                            <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                              {isExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                              )}
                             </div>
                           </div>
                         </div>
-                        
-                        {/* Bill items in this category */}
-                        <div className="mt-2 md:mt-3 space-y-1 pl-3 md:pl-4 border-l-2 border-muted">
-                          {category.bills.map((bill) => (
-                            <div key={bill.id} className="flex justify-between items-center text-xs md:text-sm">
-                              <span className="text-muted-foreground truncate pr-2">{bill.name}</span>
-                              <span className="font-medium flex-shrink-0">${formatCurrency(Number(bill.amount_now))}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </Card>
+                        {isExpanded && category.bills.length > 0 && (
+                          <div className="px-3 pb-3 space-y-1 border-t border-border/50 bg-muted/20">
+                            {category.bills.map((bill) => (
+                              <div key={bill.id} className="flex justify-between items-center text-xs py-1.5 px-2 rounded hover:bg-muted/30">
+                                <span className="text-muted-foreground truncate pr-2">{bill.name}</span>
+                                <span className="font-medium flex-shrink-0 text-foreground">${formatCurrency(Number(bill.amount_now))}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {isExpanded && category.bills.length === 0 && (
+                          <div className="px-3 pb-3 border-t border-border/50 bg-muted/20">
+                            <p className="text-xs text-muted-foreground py-2">No items in this category</p>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
-              </div>
+                  {/* Show any uncategorized items at the end */}
+                  {Object.values(budgetByCategory)
+                    .filter(cat => !categoryOrder.includes(cat.category))
+                    .map((category) => {
+                      const percentage = fullMonthIncome > 0 ? (category.total / fullMonthIncome) * 100 : 0;
+                      const isExpanded = expandedBudgetCategories.has(category.category);
+                      return (
+                        <div
+                          key={category.category}
+                          className={cn(
+                            "cursor-pointer transition-all duration-200 group border-l-4 rounded",
+                            "bg-gradient-to-br from-muted/30 to-muted/10 hover:from-muted/40 hover:to-muted/20 border-muted-foreground/20"
+                          )}
+                          onClick={() => toggleBudgetCategoryExpanded(category.category)}
+                        >
+                          <div className="p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex-1">
+                                <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">
+                                  {category.category}
+                                </p>
+                                <div className="flex items-center gap-3">
+                                  <p className="text-lg md:text-xl font-bold text-foreground">
+                                    ${formatCurrency(category.total)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatCurrency(percentage)}%
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {category.bills.length} item{category.bills.length !== 1 ? "s" : ""}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                                {isExpanded ? (
+                                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {isExpanded && (
+                            <div className="px-3 pb-3 space-y-1 border-t border-border/50 bg-muted/20">
+                              {category.bills.map((bill) => (
+                                <div key={bill.id} className="flex justify-between items-center text-xs py-1.5 px-2 rounded hover:bg-muted/30">
+                                  <span className="text-muted-foreground truncate pr-2">{bill.name}</span>
+                                  <span className="font-medium flex-shrink-0 text-foreground">${formatCurrency(Number(bill.amount_now))}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
 
-              {/* Grand Total */}
-              <div className="border-t-2 pt-3 md:pt-4">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                  <span className="text-base md:text-lg font-bold">Grand Total</span>
-                  <span className="text-xl md:text-2xl font-bold text-foreground">
-                    ${formatCurrency(totalBudget)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Coaster Tab Section */}
-            <div className="bg-secondary/10 p-3 md:p-4 rounded-lg">
-              <div className="space-y-2">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                  <span className="text-base md:text-lg font-bold flex items-center gap-2">
-                    Coaster Tab
-                    <InfoTooltip content="The money left over after paying all your bills. This is your discretionary spending money - what you can use for daily expenses, entertainment, and unexpected costs. Coaster Tab Per Diem shows how much you can spend per day until your next paycheck." />
-                  </span>
-                  <span className="text-xl md:text-2xl font-bold text-secondary">
-                    ${formatCurrency(coasterTab)}
-                  </span>
-                </div>
-                <div className="text-xs md:text-sm text-muted-foreground">
-                  {totalIncome > 0 ? formatCurrency((coasterTab / totalIncome) * 100) : "0.00"}% of income
-                </div>
-                {coastingDays > 0 && (
-                  <div className="text-xs md:text-sm text-muted-foreground flex items-center gap-1">
-                    Coaster Tab Per Diem: ${formatCurrency(coasterTab / coastingDays)}
-                    <InfoTooltip content="Your daily spending budget. Divide your Coaster Tab by the number of days until your next paycheck to see how much you can spend each day." />
+                {/* Grand Total */}
+                <div className="mt-4 pt-4 border-t-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Grand Total</span>
+                    <span className="text-xl md:text-2xl font-bold text-foreground">
+                      ${formatCurrency(totalBudget)}
+                    </span>
                   </div>
-                )}
+                </div>
+              </div>
+
+              {/* Coaster Tab Section */}
+              <div className="p-4 bg-secondary/10">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold text-foreground flex items-center gap-1">
+                      Coaster Tab
+                      <InfoTooltip content="The money left over after paying all your bills. This is your discretionary spending money - what you can use for daily expenses, entertainment, and unexpected costs." />
+                    </span>
+                    <span className="text-xl md:text-2xl font-bold text-secondary">
+                      ${formatCurrency(coasterTab)}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {fullMonthIncome > 0 ? formatCurrency((coasterTab / fullMonthIncome) * 100) : "0.00"}% of income
+                  </div>
+                  {coastingDays > 0 && (
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      Coaster Tab Per Diem: ${formatCurrency(coasterTab / coastingDays)}
+                      <InfoTooltip content="Your daily spending budget. Divide your Coaster Tab by the number of days until your next paycheck to see how much you can spend each day." />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-        </CardContent>
+          </CardContent>
         )}
       </Card>
     </div>

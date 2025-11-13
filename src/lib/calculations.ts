@@ -138,6 +138,38 @@ export function getTotalThisMonth(incomes: IncomeItem[]): number {
 }
 
 /**
+ * Calculate full month income - all income items for the current month
+ * This includes both due_date and due_date_next if they fall in the current month
+ */
+export function getFullMonthIncome(incomes: IncomeItem[]): number {
+  const today = startOfToday();
+  const thisMonth = today.getMonth();
+  const thisYear = today.getFullYear();
+  
+  return incomes.reduce((sum, income) => {
+    let total = 0;
+    
+    // Check due_date (this month's income)
+    if (income.due_date) {
+      const incomeDate = new Date(income.due_date);
+      if (incomeDate.getMonth() === thisMonth && incomeDate.getFullYear() === thisYear) {
+        total += Number(income.amount_now);
+      }
+    }
+    
+    // Check due_date_next (next month's income that might be in current month)
+    if (income.due_date_next) {
+      const incomeDateNext = new Date(income.due_date_next);
+      if (incomeDateNext.getMonth() === thisMonth && incomeDateNext.getFullYear() === thisYear) {
+        total += Number(income.amount_next);
+      }
+    }
+    
+    return sum + total;
+  }, 0);
+}
+
+/**
  * Calculate daily budget based on real balance and remaining coasting days
  */
 export function getDailyBudget(
