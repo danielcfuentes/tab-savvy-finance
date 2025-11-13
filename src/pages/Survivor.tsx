@@ -18,6 +18,7 @@ import {
   getNextPaycheckPerAccount,
   getCoastingEstimate,
   getCoastingEstimatePerAccount,
+  getCoastingEstimateForAbekBalance,
   getFullMonthTabByRanges,
   getMonthsCovered,
   type BankAccount,
@@ -218,6 +219,11 @@ const Survivor = () => {
     const openBills = getOpenBillsPerAccount(bills, nextPaycheckDate, accountId);
     const nextPaycheck = getNextPaycheckPerAccount(incomes, nextPaycheckDate, accountId);
     const abekBalance = closedTab - openBills + nextPaycheck;
+    const coastingEstimate = getCoastingEstimateForAbekBalance(
+      accountCoastingExpenses,
+      coastingDays,
+      nextPaycheckDate
+    );
     
     return {
       id: accountId,
@@ -233,6 +239,7 @@ const Survivor = () => {
       openBills,
       nextPaycheck,
       abekBalance,
+      coastingEstimate,
     };
   });
 
@@ -506,41 +513,17 @@ const Survivor = () => {
                   toggleRealBalanceExpanded(accountData.id);
                 }}
               >
-                <div className="p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                        {accountData.isBankAccount ? "Real Balance" : accountData.isCreditAccount ? "Real Credit Balance" : "Real Balance"}
-                      </p>
-                      <p className={cn(
-                        "text-xl md:text-2xl font-bold",
-                        accountData.realBalance >= 0 && accountData.isBankAccount 
-                          ? "text-green-600 dark:text-green-400" 
-                          : "text-red-600 dark:text-red-400"
-                      )}>
-                        ${formatCurrency(Math.abs(accountData.realBalance))}
-                      </p>
-                    </div>
-                    <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
-                      {expandedRealBalance.has(accountData.id) ? (
-                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                      )}
-                    </div>
-                    </div>
-                    </div>
                 {expandedRealBalance.has(accountData.id) && (
-                  <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                  <div className="px-4 pt-4 space-y-3 border-b-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
                     {/* Bank Balance */}
-                    <div className="pt-3">
+                    <div>
                       <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
                         {accountData.isBankAccount ? "Bank Balance" : accountData.isCreditAccount ? "Credit Balance" : "Balance"}
                       </p>
                       <p className="text-lg font-bold text-foreground">
                         {formatCurrency(accountData.bankBalance)}
                       </p>
-                  </div>
+                    </div>
                     {/* Coasting Expenses */}
                     <div 
                       className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
@@ -563,7 +546,7 @@ const Survivor = () => {
                               : '-'
                             }
                           </p>
-                            </div>
+                        </div>
                         {coastingExpenses.length > 0 && (
                           <div className="transition-transform duration-200">
                             {coastingExpensesExpanded ? (
@@ -571,14 +554,14 @@ const Survivor = () => {
                             ) : (
                               <ChevronRight className="w-3 h-3 text-muted-foreground" />
                             )}
-                            </div>
-                        )}
                           </div>
+                        )}
+                      </div>
                       {coastingExpensesExpanded && coastingExpenses.length > 0 && (
                         <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-800 space-y-1 max-h-48 overflow-y-auto">
                           {coastingExpenses.map((expense) => {
                             const isPastExpense = !isActiveExpense(expense);
-  return (
+                            return (
                               <div 
                                 key={expense.id} 
                                 className={cn(
@@ -603,16 +586,40 @@ const Survivor = () => {
                                   )}>
                                     {formatCurrency(Number(expense.amount))}
                                   </span>
-                            </div>
-                            </div>
+                                </div>
+                              </div>
                             );
                           })}
-                          </div>
+                        </div>
                       )}
-                            </div>
-                            </div>
+                    </div>
+                  </div>
                 )}
-      </div>
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                        {accountData.isBankAccount ? "Real Balance" : accountData.isCreditAccount ? "Real Credit Balance" : "Real Balance"}
+                      </p>
+                      <p className={cn(
+                        "text-xl md:text-2xl font-bold",
+                        accountData.realBalance >= 0 && accountData.isBankAccount 
+                          ? "text-green-600 dark:text-green-400" 
+                          : "text-red-600 dark:text-red-400"
+                      )}>
+                        ${formatCurrency(Math.abs(accountData.realBalance))}
+                      </p>
+                    </div>
+                    <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                      {expandedRealBalance.has(accountData.id) ? (
+                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Section 2: Closed Out (Collapsible) */}
               <div 
@@ -627,35 +634,10 @@ const Survivor = () => {
                   toggleClosedOutExpanded(accountData.id);
                 }}
               >
-                <div className="p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
-                        Closed Out
-                        <InfoTooltip content="Your balance after paying bills scheduled before your next paycheck." />
-                      </p>
-                      <p className={cn(
-                        "text-xl md:text-2xl font-bold",
-                        accountData.closedTab >= 0 
-                          ? "text-green-600 dark:text-green-400" 
-                          : "text-red-600 dark:text-red-400"
-                      )}>
-                        ${formatCurrency(Math.abs(accountData.closedTab))}
-                      </p>
-            </div>
-                    <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
-                      {expandedClosedOut.has(accountData.id) ? (
-                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
-            ) : (
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            )}
-          </div>
-                    </div>
-                    </div>
                 {expandedClosedOut.has(accountData.id) && (
-                  <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                  <div className="px-4 pt-4 space-y-3 border-b-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
                     {/* Real Balance */}
-                    <div className="pt-3">
+                    <div>
                       <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
                         Real Balance
                       </p>
@@ -688,7 +670,7 @@ const Survivor = () => {
                               : '-'
                             }
                           </p>
-                    </div>
+                        </div>
                         {billsToClose.length > 0 && (
                           <div className="transition-transform duration-200">
                             {billsToCloseExpanded ? (
@@ -696,9 +678,9 @@ const Survivor = () => {
                             ) : (
                               <ChevronRight className="w-3 h-3 text-muted-foreground" />
                             )}
-                        </div>
+                          </div>
                         )}
-                        </div>
+                      </div>
                       {billsToCloseExpanded && billsToClose.length > 0 && (
                         <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-800 space-y-1 max-h-48 overflow-y-auto">
                           {billsToClose.map((bill) => (
@@ -713,15 +695,40 @@ const Survivor = () => {
                                 <span className="font-bold whitespace-nowrap text-red-600 dark:text-red-400">
                                   ${formatCurrency(Number(bill.amount_now))}
                                 </span>
-                      </div>
-                    </div>
-                  ))}
-                      </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-                      </div>
-                )}
                   </div>
+                )}
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
+                        Closed Out
+                        <InfoTooltip content="Your balance after paying bills scheduled before your next paycheck." />
+                      </p>
+                      <p className={cn(
+                        "text-xl md:text-2xl font-bold",
+                        accountData.closedTab >= 0 
+                          ? "text-green-600 dark:text-green-400" 
+                          : "text-red-600 dark:text-red-400"
+                      )}>
+                        ${formatCurrency(Math.abs(accountData.closedTab))}
+                      </p>
+                    </div>
+                    <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                      {expandedClosedOut.has(accountData.id) ? (
+                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
                   
               {/* Section 3: Abek Balance (Collapsible) */}
               <div 
@@ -740,7 +747,7 @@ const Survivor = () => {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1">
                       <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                        Abek Balance
+                        Abek: Balance
                       </p>
                       <p className={cn(
                         "text-xl md:text-2xl font-bold",
@@ -866,7 +873,7 @@ const Survivor = () => {
                             } else if (dueDateNext && dueDateNext.getTime() === nextPaycheckDate?.getTime()) {
                               amount = Number(income.amount_next);
                             }
-                        return (
+                            return (
                               <div 
                                 key={income.id} 
                                 className="text-xs bg-white dark:bg-gray-800 p-1.5 rounded border border-green-200 dark:border-green-800"
@@ -877,22 +884,35 @@ const Survivor = () => {
                                   </span>
                                   <span className="font-bold whitespace-nowrap text-green-600 dark:text-green-400">
                                     +{formatCurrency(amount)}
-                              </span>
-                      </div>
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                                );
-                              })}
-                        </div>
-                              )}
-                        </div>
-                        </div>
-                )}
-                      </div>
+                      )}
                     </div>
+                    {/* Coasting Estimate */}
+                    <div className="pt-2">
+                      <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
+                        Coasting Estimate
+                        <InfoTooltip content="Estimated coasting expenses from next paycheck to end of current month, based on your average daily coasting spending." />
+                      </p>
+                      <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                        {accountData.coastingEstimate > 0 
+                          ? `(${formatCurrency(accountData.coastingEstimate)})`
+                          : '-'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </CardContent>
         )}
-                          </Card>
-                        );
+      </Card>
+    );
   };
 
   // Render Total Tab for Close Out
@@ -906,6 +926,11 @@ const Survivor = () => {
     const totalOpenBills = isBankAccount ? totalBankOpenBills : totalCreditOpenBills;
     const totalNextPaycheck = isBankAccount ? totalBankNextPaycheck : totalCreditNextPaycheck;
     const totalAbekBalance = isBankAccount ? totalBankAbekBalance : totalCreditAbekBalance;
+    const totalCoastingEstimate = getCoastingEstimateForAbekBalance(
+      totalCoastingExp,
+      coastingDays,
+      nextPaycheckDate
+    );
 
     const allBillsToClose = bills.filter(bill => {
       if (!nextPaycheckDate) return false;
@@ -1000,41 +1025,17 @@ const Survivor = () => {
                 setExpandedRealBalance(newExpanded);
               }}
             >
-              <div className="p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                      {isBankAccount ? "Real Balance" : "Real Credit Balance"}
-                    </p>
-                    <p className={cn(
-                      "text-xl md:text-2xl font-bold",
-                      totalRealBal >= 0 && isBankAccount 
-                        ? "text-green-600 dark:text-green-400" 
-                        : "text-red-600 dark:text-red-400"
-                    )}>
-                      ${formatCurrency(Math.abs(totalRealBal))}
-                    </p>
-                      </div>
-                  <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
-                    {totalRealBalanceExpanded ? (
-                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                    )}
-                    </div>
-                      </div>
-                    </div>
               {totalRealBalanceExpanded && (
-                <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                <div className="px-4 pt-4 space-y-3 border-b-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
                   {/* Bank/Credit Balance */}
-                  <div className="pt-3">
+                  <div>
                     <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
                       {isBankAccount ? "Bank Balance" : "Credit Balance"}
                     </p>
                     <p className="text-lg font-bold text-foreground">
                       {formatCurrency(totalBalance)}
                     </p>
-                      </div>
+                  </div>
                   {/* Coasting Expenses */}
                   <div 
                     className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
@@ -1064,7 +1065,7 @@ const Survivor = () => {
                             : '-'
                           }
                         </p>
-                    </div>
+                      </div>
                       {allCoastingExpenses.length > 0 && (
                         <div className="transition-transform duration-200">
                           {totalCoastingExpensesExpanded ? (
@@ -1072,7 +1073,7 @@ const Survivor = () => {
                           ) : (
                             <ChevronRight className="w-3 h-3 text-muted-foreground" />
                           )}
-                      </div>
+                        </div>
                       )}
                     </div>
                     {totalCoastingExpensesExpanded && allCoastingExpenses.length > 0 && (
@@ -1082,7 +1083,7 @@ const Survivor = () => {
                           const accountType = account?.account_type?.toLowerCase() || '';
                           const isBankAcc = ['checking', 'savings', 'digital_wallet'].includes(accountType);
                           const isPastExpense = !isActiveExpense(expense);
-                              return (
+                          return (
                             <div 
                               key={expense.id} 
                               className={cn(
@@ -1109,14 +1110,38 @@ const Survivor = () => {
                                 </span>
                               </div>
                             </div>
-                                    );
-                                  })}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
                 </div>
               )}
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                      {isBankAccount ? "Real Balance" : "Real Credit Balance"}
+                    </p>
+                    <p className={cn(
+                      "text-xl md:text-2xl font-bold",
+                      totalRealBal >= 0 && isBankAccount 
+                        ? "text-green-600 dark:text-green-400" 
+                        : "text-red-600 dark:text-red-400"
+                    )}>
+                      ${formatCurrency(Math.abs(totalRealBal))}
+                    </p>
                   </div>
+                  <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                    {totalRealBalanceExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
                   
             {/* Section 2: Closed Out (Collapsible) */}
             <div 
@@ -1137,35 +1162,10 @@ const Survivor = () => {
                 setExpandedClosedOut(newExpanded);
               }}
             >
-              <div className="p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
-                      Closed Out
-                      <InfoTooltip content="Your balance after paying bills scheduled before your next paycheck." />
-                    </p>
-                    <p className={cn(
-                      "text-xl md:text-2xl font-bold",
-                      totalClosedTab >= 0 && isBankAccount
-                        ? "text-green-600 dark:text-green-400" 
-                        : "text-red-600 dark:text-red-400"
-                    )}>
-                      ${formatCurrency(Math.abs(totalClosedTab))}
-                    </p>
-                  </div>
-                  <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
-                    {totalClosedOutExpanded ? (
-                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </div>
-                </div>
-              </div>
               {totalClosedOutExpanded && (
-                <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                <div className="px-4 pt-4 space-y-3 border-b-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
                   {/* Real Balance */}
-                  <div className="pt-3">
+                  <div>
                     <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
                       Real Balance
                     </p>
@@ -1226,19 +1226,44 @@ const Survivor = () => {
                             <div className="flex justify-between items-start">
                               <span className="font-medium truncate flex-1 mr-2 text-foreground">
                                 {bill.name}
-                      </span>
+                              </span>
                               <span className="font-bold whitespace-nowrap text-red-600 dark:text-red-400">
                                 ${formatCurrency(Number(bill.amount_now))}
-                      </span>
-                    </div>
-                  </div>
+                              </span>
+                            </div>
+                          </div>
                         ))}
-                </div>
+                      </div>
                     )}
                   </div>
                 </div>
               )}
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
+                      Closed Out
+                      <InfoTooltip content="Your balance after paying bills scheduled before your next paycheck." />
+                    </p>
+                    <p className={cn(
+                      "text-xl md:text-2xl font-bold",
+                      totalClosedTab >= 0 && isBankAccount
+                        ? "text-green-600 dark:text-green-400" 
+                        : "text-red-600 dark:text-red-400"
+                    )}>
+                      ${formatCurrency(Math.abs(totalClosedTab))}
+                    </p>
+                  </div>
+                  <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                    {totalClosedOutExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
               </div>
+            </div>
 
             {/* Section 3: Abek Balance (Collapsible) */}
             <div 
@@ -1263,7 +1288,7 @@ const Survivor = () => {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex-1">
                     <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                      Abek Balance
+                      Abek: Balance
                     </p>
                     <p className={cn(
                       "text-xl md:text-2xl font-bold",
@@ -1403,7 +1428,7 @@ const Survivor = () => {
                           } else if (dueDateNext && dueDateNext.getTime() === nextPaycheckDate?.getTime()) {
                             amount = Number(income.amount_next);
                           }
-                                return (
+                          return (
                             <div 
                               key={income.id} 
                               className="text-xs bg-white dark:bg-gray-800 p-1.5 rounded border border-green-200 dark:border-green-800"
@@ -1416,12 +1441,25 @@ const Survivor = () => {
                                   +{formatCurrency(amount)}
                                 </span>
                               </div>
-                                  </div>
-                                );
-                              })}
-                                </div>
-                              )}
                             </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  {/* Coasting Estimate */}
+                  <div className="pt-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
+                      Coasting Estimate
+                      <InfoTooltip content="Estimated coasting expenses from next paycheck to end of current month, based on your average daily coasting spending." />
+                    </p>
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                      {totalCoastingEstimate > 0 
+                        ? `(${formatCurrency(totalCoastingEstimate)})`
+                        : '-'
+                      }
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -1446,7 +1484,7 @@ const Survivor = () => {
         <p className="text-sm md:text-base text-muted-foreground">Master your money</p>
                       </div>
 
-      {/* Abek: Close Out */}
+      {/* Abek: Balance */}
       <Card className="border-2">
         <CardHeader
           className="cursor-pointer hover:bg-muted/50 transition-colors p-4 md:p-6"
@@ -1455,7 +1493,7 @@ const Survivor = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-3">
               <Calculator className="w-4 h-4 md:w-5 md:h-5 text-secondary" />
-              <CardTitle className="text-base md:text-xl">Abek: Close Out</CardTitle>
+              <CardTitle className="text-base md:text-xl">Abek: Balance</CardTitle>
                     </div>
             {closeOutExpanded ? (
               <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />

@@ -372,6 +372,39 @@ export function getCoastingEstimatePerAccount(
 }
 
 /**
+ * Calculate coasting estimate for Abek Balance section
+ * Coasting Estimate = (Coasting Total) / Number of Coasting Days × No. of Days between last Coasting Day and the End of the Current Month
+ * 
+ * @param coastingTotal - Total amount of coasting expenses
+ * @param coastingDays - Number of days in the coasting period (from today to next paycheck)
+ * @param nextPaycheckDate - The last coasting day (next paycheck date)
+ * @returns The estimated coasting expenses from next paycheck to end of current month
+ */
+export function getCoastingEstimateForAbekBalance(
+  coastingTotal: number,
+  coastingDays: number,
+  nextPaycheckDate: Date | null
+): number {
+  if (!nextPaycheckDate || coastingDays <= 0 || coastingTotal <= 0) return 0;
+  
+  const today = startOfToday();
+  const endOfCurrentMonth = endOfMonth(today);
+  
+  // Calculate days from next paycheck date to end of current month
+  // If next paycheck is after end of month, return 0
+  if (isAfter(nextPaycheckDate, endOfCurrentMonth)) return 0;
+  
+  // Calculate days between next paycheck and end of month (inclusive)
+  const daysFromPaycheckToEndOfMonth = differenceInDays(endOfCurrentMonth, nextPaycheckDate) + 1;
+  
+  // Calculate average coasting per day
+  const averageCoastingPerDay = coastingTotal / coastingDays;
+  
+  // Estimate = average per day × days remaining in month
+  return averageCoastingPerDay * daysFromPaycheckToEndOfMonth;
+}
+
+/**
  * Calculate full month tab expenses by day ranges per account
  */
 export function getFullMonthTabByRanges(
