@@ -42,11 +42,11 @@ const WebsiteNav = () => {
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button
               variant="outline"
               onClick={() => window.location.href = "/auth"}
-              className="hidden sm:flex"
+              className="text-sm sm:text-base"
             >
               Sign In
             </Button>
