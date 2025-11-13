@@ -1,11 +1,8 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
-import { Target, Eye, Heart, ArrowRight } from "lucide-react";
+import { Target, Eye, Heart } from "lucide-react";
 import WebsiteNav from "@/components/WebsiteNav";
 
 const About = () => {
-  const navigate = useNavigate();
 
   const values = [
     {
@@ -143,34 +140,6 @@ const About = () => {
               </p>
             </CardContent>
           </Card>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-4 md:px-8 bg-secondary/10">
-        <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-4xl font-bold mb-4 text-foreground">Join Us on This Journey</h2>
-          <p className="text-xl text-muted-foreground mb-8">
-            Ready to experience budgeting the Abek way? Start your journey today.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              variant="hero" 
-              size="lg"
-              onClick={() => navigate("/auth")}
-              className="text-lg"
-            >
-              Get Started
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="lg"
-              onClick={() => navigate("/how-it-works")}
-            >
-              Learn How It Works
-            </Button>
-          </div>
         </div>
       </section>
     </div>

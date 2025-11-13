@@ -1,6 +1,4 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
 import { 
   Wallet, 
   TrendingUp, 
@@ -8,14 +6,11 @@ import {
   FileText, 
   CheckCircle2, 
   LifeBuoy,
-  DollarSign,
-  ArrowRight,
-  ArrowLeft
+  DollarSign
 } from "lucide-react";
 import WebsiteNav from "@/components/WebsiteNav";
 
 const HowItWorks = () => {
-  const navigate = useNavigate();
 
   const tabs = [
     {
@@ -261,35 +256,6 @@ const HowItWorks = () => {
                 </p>
               </CardContent>
             </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-4 md:px-8">
-        <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-4xl font-bold mb-4 text-foreground">Ready to Get Started?</h2>
-          <p className="text-xl text-muted-foreground mb-8">
-            Experience the simplicity of Abek budgeting today.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              variant="hero" 
-              size="lg"
-              onClick={() => navigate("/auth")}
-              className="text-lg"
-            >
-              Open Your Tab
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="lg"
-              onClick={() => navigate("/")}
-            >
-              <ArrowLeft className="w-5 h-5 mr-2" />
-              Back to Home
-            </Button>
           </div>
         </div>
       </section>
