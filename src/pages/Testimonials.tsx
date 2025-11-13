@@ -2,54 +2,38 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Quote, Star, ArrowRight } from "lucide-react";
 import WebsiteNav from "@/components/WebsiteNav";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Testimonial = Tables<"testimonials">;
 
 const Testimonials = () => {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Placeholder testimonials - these can be replaced with real data from a CMS or database
-  const testimonials = [
-    {
-      name: "Sarah M.",
-      role: "Freelance Designer",
-      content: "Abek has completely changed how I manage my money. The tab system makes so much sense—I can see everything at a glance and never feel overwhelmed. Finally, a budgeting app that actually works for me!",
-      rating: 5,
-      date: "January 2025",
-    },
-    {
-      name: "James T.",
-      role: "Recent Graduate",
-      content: "As someone living paycheck to paycheck, Abek's coasting days feature is a lifesaver. I know exactly how long my money will last, and the bill tracker ensures I never miss a payment. Simple and effective.",
-      rating: 5,
-      date: "December 2024",
-    },
-    {
-      name: "Maria L.",
-      role: "Small Business Owner",
-      content: "I've tried every budgeting app out there, and Abek is the first one that stuck. The visual approach and real bank balance feature give me confidence in my financial decisions. Highly recommend!",
-      rating: 5,
-      date: "January 2025",
-    },
-    {
-      name: "David K.",
-      role: "Parent of Two",
-      content: "Managing finances for a family is stressful, but Abek makes it manageable. I can track all our accounts, bills, and expenses in one place. The interface is clean and intuitive—exactly what I needed.",
-      rating: 5,
-      date: "December 2024",
-    },
-    {
-      name: "Emily R.",
-      role: "Student",
-      content: "As a student on a tight budget, Abek helps me see exactly where my money goes. The coaster tab is perfect for tracking daily expenses, and I love how simple everything is. No complicated features I'll never use.",
-      rating: 5,
-      date: "November 2024",
-    },
-    {
-      name: "Michael P.",
-      role: "Retail Worker",
-      content: "Finally, a budgeting tool that doesn't make me feel bad about my finances. Abek shows me the reality of my situation and helps me plan better. The $1/month subscription is totally worth it.",
-      rating: 5,
-      date: "January 2025",
-    },
-  ];
+  useEffect(() => {
+    const fetchTestimonials = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("testimonials")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching testimonials:", error);
+        } else {
+          setTestimonials(data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching testimonials:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTestimonials();
+  }, []);
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }).map((_, i) => (
@@ -81,10 +65,19 @@ const Testimonials = () => {
       {/* Testimonials Grid */}
       <section className="py-20 px-4 md:px-8">
         <div className="container mx-auto max-w-6xl">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, index) => (
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Loading testimonials...</p>
+            </div>
+          ) : testimonials.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No testimonials available yet.</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {testimonials.map((testimonial) => (
               <Card 
-                key={index}
+                key={testimonial.id}
                 className="border-2 hover:shadow-card-hover transition-smooth hover:-translate-y-1"
               >
                 <CardContent className="pt-6 pb-6">
@@ -106,8 +99,9 @@ const Testimonials = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

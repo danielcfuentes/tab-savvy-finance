@@ -18,9 +18,41 @@ import {
 } from "lucide-react";
 import heroIllustration from "@/assets/hero-illustration.png";
 import WebsiteNav from "@/components/WebsiteNav";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Testimonial = Tables<"testimonials">;
 
 const Landing = () => {
   const navigate = useNavigate();
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTestimonials = async () => {
+      try {
+        // Fetch only the first 3 testimonials for the landing page
+        const { data, error } = await supabase
+          .from("testimonials")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(3);
+
+        if (error) {
+          console.error("Error fetching testimonials:", error);
+        } else {
+          setTestimonials(data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching testimonials:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTestimonials();
+  }, []);
 
   const features = [
     {
@@ -225,81 +257,68 @@ const Landing = () => {
             <h2 className="text-3xl font-bold mb-2 text-foreground">Loved by Budgeters Everywhere</h2>
             <p className="text-muted-foreground">Join thousands who've simplified their finances with Abek</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6 mb-12">
-            <Card className="border-2 bg-card">
-              <CardContent className="pt-6 pb-6">
-                <div className="flex items-center gap-1 mb-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-secondary text-secondary" />
-                  ))}
-                </div>
-                <p className="text-muted-foreground mb-4 italic">
-                  "Finally, a budgeting app that makes sense. The tab system is genius!"
-                </p>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center">
-                    <Users className="w-4 h-4 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Sarah M.</p>
-                    <p className="text-xs text-muted-foreground">Freelance Designer</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-2 bg-card">
-              <CardContent className="pt-6 pb-6">
-                <div className="flex items-center gap-1 mb-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-secondary text-secondary" />
-                  ))}
-                </div>
-                <p className="text-muted-foreground mb-4 italic">
-                  "The coasting days feature saved me from so many financial mistakes. Game changer!"
-                </p>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center">
-                    <Users className="w-4 h-4 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">James T.</p>
-                    <p className="text-xs text-muted-foreground">Recent Graduate</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-2 bg-card">
-              <CardContent className="pt-6 pb-6">
-                <div className="flex items-center gap-1 mb-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-secondary text-secondary" />
-                  ))}
-                </div>
-                <p className="text-muted-foreground mb-4 italic">
-                  "Simple, beautiful, and actually works. This is what budgeting should be."
-                </p>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center">
-                    <Users className="w-4 h-4 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Maria L.</p>
-                    <p className="text-xs text-muted-foreground">Small Business Owner</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="text-center">
-            <Button 
-              variant="outline" 
-              size="lg"
-              onClick={() => navigate("/testimonials")}
-            >
-              Read More Stories
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Loading testimonials...</p>
+            </div>
+          ) : testimonials.length > 0 ? (
+            <>
+              <div className="grid md:grid-cols-3 gap-6 mb-12">
+                {testimonials.map((testimonial, index) => (
+                  <Card key={testimonial.id || index} className="border-2 bg-card">
+                    <CardContent className="pt-6 pb-6">
+                      <div className="flex items-center gap-1 mb-3">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star 
+                            key={i} 
+                            className={`w-4 h-4 ${
+                              i < testimonial.rating 
+                                ? "fill-secondary text-secondary" 
+                                : "text-muted-foreground/30"
+                            }`} 
+                          />
+                        ))}
+                      </div>
+                      <p className="text-muted-foreground mb-4 italic">
+                        "{testimonial.content}"
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center">
+                          <Users className="w-4 h-4 text-secondary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{testimonial.name}</p>
+                          <p className="text-xs text-muted-foreground">{testimonial.role}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              <div className="text-center">
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={() => navigate("/testimonials")}
+                >
+                  Read More Stories
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground mb-4">No testimonials available yet.</p>
+              <Button 
+                variant="outline" 
+                size="lg"
+                onClick={() => navigate("/testimonials")}
+              >
+                View Testimonials
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
