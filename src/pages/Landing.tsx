@@ -32,10 +32,11 @@ const Landing = () => {
   useEffect(() => {
     const fetchTestimonials = async () => {
       try {
-        // Fetch only the first 3 testimonials for the landing page
+        // Fetch the top 3 highest rated testimonials for the landing page
         const { data, error } = await supabase
           .from("testimonials")
           .select("*")
+          .order("rating", { ascending: false })
           .order("created_at", { ascending: false })
           .limit(3);
 
