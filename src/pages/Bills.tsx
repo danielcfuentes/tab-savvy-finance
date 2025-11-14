@@ -1089,6 +1089,24 @@ const Bills = () => {
             <p className="text-sm text-muted-foreground">Today</p>
             <p className="text-lg font-semibold">{new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: resolvedTz }).format(new Date())}</p>
           </div>
+
+          {/* Bills Breakdown Summary - Compact */}
+          <div className="bg-muted/50 rounded-lg p-4 mb-4">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Bills to Close</p>
+                <p className="text-sm font-semibold text-green-600 dark:text-green-400">${formatCurrency(billsToCloseBeforePaycheck)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Bills Open</p>
+                <p className="text-sm font-semibold text-yellow-600 dark:text-yellow-400">${formatCurrency(billsOpenAfterPaycheck)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Total</p>
+                <p className="text-sm font-bold">${formatCurrency(billsToCloseBeforePaycheck + billsOpenAfterPaycheck)}</p>
+              </div>
+            </div>
+          </div>
       <style>{`
         .rdp .rdp-nav,
         .rdp button.rdp-nav_button_previous,
@@ -1703,28 +1721,6 @@ const Bills = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Bills Breakdown Summary */}
-      <Card className="border-2 mt-4">
-        <CardContent className="pt-6">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Bills to Close:</span>
-              <span className="text-sm font-semibold text-green-600 dark:text-green-400">${formatCurrency(billsToCloseBeforePaycheck)}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Bills Open:</span>
-              <span className="text-sm font-semibold text-yellow-600 dark:text-yellow-400">${formatCurrency(billsOpenAfterPaycheck)}</span>
-            </div>
-            <div className="pt-2 border-t">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-semibold">Total:</span>
-                <span className="text-sm font-bold">${formatCurrency(billsToCloseBeforePaycheck + billsOpenAfterPaycheck)}</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
         </CollapsibleContent>
       </Collapsible>
 
