@@ -646,7 +646,7 @@ const Survivor = () => {
                 </div>
               </div>
 
-              {/* Section 2: Closed Out (Collapsible) */}
+              {/* Section 2: Closing Tab (Collapsible) */}
               <div 
                 className={cn(
                   "cursor-pointer transition-all duration-200 group",
@@ -666,30 +666,25 @@ const Survivor = () => {
                       <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
                         Real Cash
                       </p>
-                      <p className={cn(
-                        "text-lg font-bold",
-                        accountData.realBalance >= 0 && accountData.isBankAccount 
-                          ? "text-green-600 dark:text-green-400" 
-                          : "text-red-600 dark:text-red-400"
-                      )}>
+                      <p className="text-lg font-bold text-foreground">
                         ${formatCurrency(Math.abs(accountData.realBalance))}
                       </p>
                     </div>
-                    {/* Bills to Close */}
-                    <div 
-                      className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleBillsToCloseExpanded(accountData.id);
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-2">
+                    {/* Closing Bills */}
+                    <div>
+                      <div 
+                        className="cursor-pointer hover:bg-muted/30 rounded transition-colors flex items-center justify-between gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleBillsToCloseExpanded(accountData.id);
+                        }}
+                      >
                         <div className="flex-1">
                           <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
-                            Bills to Close
+                            Closing Bills
                             <InfoTooltip content="Bills that are due before your next paycheck." />
                           </p>
-                          <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                          <p className="text-lg font-bold text-foreground">
                             {accountData.billsToClose > 0 
                               ? `(${formatCurrency(accountData.billsToClose)})`
                               : '-'
@@ -717,7 +712,7 @@ const Survivor = () => {
                                 <span className="font-medium truncate flex-1 mr-2 text-foreground">
                                   {bill.name}
                                 </span>
-                                <span className="font-bold whitespace-nowrap text-red-600 dark:text-red-400">
+                                <span className="font-bold whitespace-nowrap text-foreground">
                                   ${formatCurrency(Number(bill.amount_now))}
                                 </span>
                               </div>
@@ -732,7 +727,7 @@ const Survivor = () => {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1">
                       <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
-                        Closed Out
+                        Closing Tab
                         <InfoTooltip content="Your balance after paying bills scheduled before your next paycheck." />
                       </p>
                       <p className={cn(
@@ -768,67 +763,38 @@ const Survivor = () => {
                   toggleAbekBalanceExpanded(accountData.id);
                 }}
               >
-                <div className="p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                        Abek: Balance
-                      </p>
-                      <p className={cn(
-                        "text-xl md:text-2xl font-bold",
-                        accountData.abekBalance >= 0 && accountData.isBankAccount 
-                          ? "text-green-600 dark:text-green-400" 
-                          : "text-red-600 dark:text-red-400"
-                      )}>
-                        ${formatCurrency(Math.abs(accountData.abekBalance))}
-                      </p>
-                            </div>
-                    <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
-                      {expandedAbekBalance.has(accountData.id) ? (
-                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                      )}
-                            </div>
-                          </div>
-                    </div>
                 {expandedAbekBalance.has(accountData.id) && (
-                  <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
-                    {/* Closed Out */}
-                    <div className="pt-3">
+                  <div className="px-4 pt-4 space-y-3 border-b-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                    {/* Closing Tab */}
+                    <div>
                       <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
-                        Closed Out
+                        Closing Tab
                       </p>
-                      <p className={cn(
-                        "text-lg font-bold",
-                        accountData.closedTab >= 0 
-                          ? "text-green-600 dark:text-green-400" 
-                          : "text-red-600 dark:text-red-400"
-                      )}>
+                      <p className="text-lg font-bold text-foreground">
                         ${formatCurrency(Math.abs(accountData.closedTab))}
                       </p>
-                  </div>
+                    </div>
                     {/* Open Bills */}
-                    <div 
-                      className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleOpenBillsExpanded(accountData.id);
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <div 
+                        className="cursor-pointer hover:bg-muted/30 rounded transition-colors flex items-center justify-between gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleOpenBillsExpanded(accountData.id);
+                        }}
+                      >
                         <div className="flex-1">
                           <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
-                              Open Bills
+                            Open Bills
                             <InfoTooltip content="Bills that are due on or after your next paycheck." />
                           </p>
-                          <p className="text-sm font-bold text-yellow-600 dark:text-yellow-400">
+                          <p className="text-lg font-bold text-foreground">
                             {accountData.openBills > 0 
                               ? `(${formatCurrency(accountData.openBills)})`
                               : '-'
                             }
                           </p>
-                            </div>
+                        </div>
                         {openBills.length > 0 && (
                           <div className="transition-transform duration-200">
                             {openBillsExpanded ? (
@@ -836,9 +802,9 @@ const Survivor = () => {
                             ) : (
                               <ChevronRight className="w-3 h-3 text-muted-foreground" />
                             )}
-                            </div>
-                        )}
                           </div>
+                        )}
+                      </div>
                       {openBillsExpanded && openBills.length > 0 && (
                         <div className="mt-2 pt-2 border-t border-yellow-200 dark:border-yellow-800 space-y-1 max-h-48 overflow-y-auto">
                           {openBills.map((bill) => (
@@ -849,34 +815,34 @@ const Survivor = () => {
                               <div className="flex justify-between items-start">
                                 <span className="font-medium truncate flex-1 mr-2 text-foreground">
                                   {bill.name}
-                      </span>
-                                <span className="font-bold whitespace-nowrap text-yellow-600 dark:text-yellow-400">
+                                </span>
+                                <span className="font-bold whitespace-nowrap text-foreground">
                                   ${formatCurrency(Number(bill.amount_now))}
-                      </span>
+                                </span>
+                              </div>
                             </div>
-                            </div>
-                  ))}
-                          </div>
+                          ))}
+                        </div>
                       )}
-                            </div>
+                    </div>
                     {/* Future Paychecks */}
-                    <div 
-                      className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFuturePaychecksExpanded(accountData.id);
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <div 
+                        className="cursor-pointer hover:bg-muted/30 rounded transition-colors flex items-center justify-between gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFuturePaychecksExpanded(accountData.id);
+                        }}
+                      >
                         <div className="flex-1">
                           <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
                             Future Paychecks
                             <InfoTooltip content="Income expected to be deposited on your next paycheck date." />
                           </p>
-                          <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                          <p className="text-lg font-bold text-foreground">
                             +{formatCurrency(accountData.nextPaycheck || 0)}
                           </p>
-                            </div>
+                        </div>
                         {futurePaychecks.length > 0 && (
                           <div className="transition-transform duration-200">
                             {futurePaychecksExpanded ? (
@@ -886,7 +852,7 @@ const Survivor = () => {
                             )}
                           </div>
                         )}
-                        </div>
+                      </div>
                       {futurePaychecksExpanded && futurePaychecks.length > 0 && (
                         <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800 space-y-1 max-h-48 overflow-y-auto">
                           {futurePaychecks.map((income) => {
@@ -907,7 +873,7 @@ const Survivor = () => {
                                   <span className="font-medium truncate flex-1 mr-2 text-foreground">
                                     {income.name}
                                   </span>
-                                  <span className="font-bold whitespace-nowrap text-green-600 dark:text-green-400">
+                                  <span className="font-bold whitespace-nowrap text-foreground">
                                     +{formatCurrency(amount)}
                                   </span>
                                 </div>
@@ -918,12 +884,12 @@ const Survivor = () => {
                       )}
                     </div>
                     {/* Coasting Estimate */}
-                    <div className="pt-2">
+                    <div>
                       <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
                         Coasting Estimate
                         <InfoTooltip content="Estimated coasting expenses from next paycheck to end of current month, based on your average daily coasting spending." />
                       </p>
-                      <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                      <p className="text-lg font-bold text-foreground">
                         {accountData.coastingEstimate > 0 
                           ? `(${formatCurrency(accountData.coastingEstimate)})`
                           : '-'
@@ -932,6 +898,30 @@ const Survivor = () => {
                     </div>
                   </div>
                 )}
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                        Abek: Balance
+                      </p>
+                      <p className={cn(
+                        "text-xl md:text-2xl font-bold",
+                        accountData.abekBalance >= 0 && accountData.isBankAccount 
+                          ? "text-green-600 dark:text-green-400" 
+                          : "text-red-600 dark:text-red-400"
+                      )}>
+                        ${formatCurrency(Math.abs(accountData.abekBalance))}
+                      </p>
+                    </div>
+                    <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                      {expandedAbekBalance.has(accountData.id) ? (
+                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -1189,7 +1179,7 @@ const Survivor = () => {
               </div>
             </div>
                   
-              {/* Section 2: Closed Out (Collapsible) */}
+              {/* Section 2: Closing Tab (Collapsible) */}
               <div 
                 className={cn(
                   "cursor-pointer transition-all duration-200 group",
@@ -1215,37 +1205,32 @@ const Survivor = () => {
                     <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
                       Real Cash
                     </p>
-                    <p className={cn(
-                      "text-lg font-bold",
-                      totalRealBal >= 0 && isBankAccount 
-                        ? "text-green-600 dark:text-green-400" 
-                        : "text-red-600 dark:text-red-400"
-                    )}>
+                    <p className="text-lg font-bold text-foreground">
                       ${formatCurrency(Math.abs(totalRealBal))}
                     </p>
                   </div>
-                  {/* Bills to Close */}
-                  <div 
-                    className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newExpanded = new Set(expandedBillsToClose);
-                      const key = isBankAccount ? "total-bank" : "total-credit";
-                      if (newExpanded.has(key)) {
-                        newExpanded.delete(key);
-                      } else {
-                        newExpanded.add(key);
-                      }
-                      setExpandedBillsToClose(newExpanded);
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
+                  {/* Closing Bills */}
+                  <div>
+                    <div 
+                      className="cursor-pointer hover:bg-muted/30 rounded transition-colors flex items-center justify-between gap-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newExpanded = new Set(expandedBillsToClose);
+                        const key = isBankAccount ? "total-bank" : "total-credit";
+                        if (newExpanded.has(key)) {
+                          newExpanded.delete(key);
+                        } else {
+                          newExpanded.add(key);
+                        }
+                        setExpandedBillsToClose(newExpanded);
+                      }}
+                    >
                       <div className="flex-1">
                         <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
-                          Bills to Close
+                          Closing Bills
                           <InfoTooltip content="Bills that are due before your next paycheck." />
                         </p>
-                        <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                        <p className="text-lg font-bold text-foreground">
                           {totalBillsToClose > 0 
                             ? `(${formatCurrency(totalBillsToClose)})`
                             : '-'
@@ -1273,7 +1258,7 @@ const Survivor = () => {
                               <span className="font-medium truncate flex-1 mr-2 text-foreground">
                                 {bill.name}
                               </span>
-                              <span className="font-bold whitespace-nowrap text-red-600 dark:text-red-400">
+                              <span className="font-bold whitespace-nowrap text-foreground">
                                 ${formatCurrency(Number(bill.amount_now))}
                               </span>
                             </div>
@@ -1288,7 +1273,7 @@ const Survivor = () => {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex-1">
                     <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1">
-                      Closed Out
+                      Closing Tab
                       <InfoTooltip content="Your balance after paying bills scheduled before your next paycheck." />
                     </p>
                     <p className={cn(
@@ -1330,68 +1315,39 @@ const Survivor = () => {
                 setExpandedAbekBalance(newExpanded);
               }}
             >
-              <div className="p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                      Abek: Balance
-                    </p>
-                    <p className={cn(
-                      "text-xl md:text-2xl font-bold",
-                      totalAbekBalance >= 0 && isBankAccount 
-                        ? "text-green-600 dark:text-green-400" 
-                        : "text-red-600 dark:text-red-400"
-                    )}>
-                      ${formatCurrency(Math.abs(totalAbekBalance))}
-                    </p>
-                  </div>
-                  <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
-                    {totalAbekBalanceExpanded ? (
-                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </div>
-                </div>
-              </div>
               {totalAbekBalanceExpanded && (
-                <div className="px-4 pb-4 space-y-3 border-t-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
-                  {/* Closed Out */}
-                  <div className="pt-3">
+                <div className="px-4 pt-4 space-y-3 border-b-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
+                  {/* Closing Tab */}
+                  <div>
                     <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
-                      Closed Out
+                      Closing Tab
                     </p>
-                    <p className={cn(
-                      "text-lg font-bold",
-                      totalClosedTab >= 0 && isBankAccount
-                        ? "text-green-600 dark:text-green-400" 
-                        : "text-red-600 dark:text-red-400"
-                    )}>
+                    <p className="text-lg font-bold text-foreground">
                       ${formatCurrency(Math.abs(totalClosedTab))}
                     </p>
                   </div>
                   {/* Open Bills */}
-                  <div 
-                    className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newExpanded = new Set(expandedOpenBills);
-                      const key = isBankAccount ? "total-bank" : "total-credit";
-                      if (newExpanded.has(key)) {
-                        newExpanded.delete(key);
-                      } else {
-                        newExpanded.add(key);
-                      }
-                      setExpandedOpenBills(newExpanded);
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div 
+                      className="cursor-pointer hover:bg-muted/30 rounded transition-colors flex items-center justify-between gap-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newExpanded = new Set(expandedOpenBills);
+                        const key = isBankAccount ? "total-bank" : "total-credit";
+                        if (newExpanded.has(key)) {
+                          newExpanded.delete(key);
+                        } else {
+                          newExpanded.add(key);
+                        }
+                        setExpandedOpenBills(newExpanded);
+                      }}
+                    >
                       <div className="flex-1">
                         <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
                           Open Bills
                           <InfoTooltip content="Bills that are due on or after your next paycheck." />
                         </p>
-                        <p className="text-sm font-bold text-yellow-600 dark:text-yellow-400">
+                        <p className="text-lg font-bold text-foreground">
                           {totalOpenBills > 0 
                             ? `(${formatCurrency(totalOpenBills)})`
                             : '-'
@@ -1419,37 +1375,37 @@ const Survivor = () => {
                               <span className="font-medium truncate flex-1 mr-2 text-foreground">
                                 {bill.name}
                               </span>
-                              <span className="font-bold whitespace-nowrap text-yellow-600 dark:text-yellow-400">
+                              <span className="font-bold whitespace-nowrap text-foreground">
                                 ${formatCurrency(Number(bill.amount_now))}
                               </span>
                             </div>
-                                  </div>
+                          </div>
                         ))}
-                                </div>
-                              )}
-                            </div>
+                      </div>
+                    )}
+                  </div>
                   {/* Future Paychecks */}
-                  <div 
-                    className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newExpanded = new Set(expandedFuturePaychecks);
-                      const key = isBankAccount ? "total-bank" : "total-credit";
-                      if (newExpanded.has(key)) {
-                        newExpanded.delete(key);
-                      } else {
-                        newExpanded.add(key);
-                      }
-                      setExpandedFuturePaychecks(newExpanded);
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div 
+                      className="cursor-pointer hover:bg-muted/30 rounded transition-colors flex items-center justify-between gap-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newExpanded = new Set(expandedFuturePaychecks);
+                        const key = isBankAccount ? "total-bank" : "total-credit";
+                        if (newExpanded.has(key)) {
+                          newExpanded.delete(key);
+                        } else {
+                          newExpanded.add(key);
+                        }
+                        setExpandedFuturePaychecks(newExpanded);
+                      }}
+                    >
                       <div className="flex-1">
                         <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
                           Future Paychecks
                           <InfoTooltip content="Income expected to be deposited on your next paycheck date." />
                         </p>
-                        <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                        <p className="text-lg font-bold text-foreground">
                           +{formatCurrency(totalNextPaycheck)}
                         </p>
                       </div>
@@ -1483,7 +1439,7 @@ const Survivor = () => {
                                 <span className="font-medium truncate flex-1 mr-2 text-foreground">
                                   {income.name}
                                 </span>
-                                <span className="font-bold whitespace-nowrap text-green-600 dark:text-green-400">
+                                <span className="font-bold whitespace-nowrap text-foreground">
                                   +{formatCurrency(amount)}
                                 </span>
                               </div>
@@ -1494,12 +1450,12 @@ const Survivor = () => {
                     )}
                   </div>
                   {/* Coasting Estimate */}
-                  <div className="pt-2">
+                  <div>
                     <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide flex items-center gap-1">
                       Coasting Estimate
                       <InfoTooltip content="Estimated coasting expenses from next paycheck to end of current month, based on your average daily coasting spending." />
                     </p>
-                    <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                    <p className="text-lg font-bold text-foreground">
                       {totalCoastingEstimate > 0 
                         ? `(${formatCurrency(totalCoastingEstimate)})`
                         : '-'
@@ -1508,6 +1464,30 @@ const Survivor = () => {
                   </div>
                 </div>
               )}
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                      Abek: Balance
+                    </p>
+                    <p className={cn(
+                      "text-xl md:text-2xl font-bold",
+                      totalAbekBalance >= 0 && isBankAccount 
+                        ? "text-green-600 dark:text-green-400" 
+                        : "text-red-600 dark:text-red-400"
+                    )}>
+                      ${formatCurrency(Math.abs(totalAbekBalance))}
+                    </p>
+                  </div>
+                  <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+                    {totalAbekBalanceExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
