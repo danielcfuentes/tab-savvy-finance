@@ -44,7 +44,7 @@ const Bills = () => {
   const [paymentDate, setPaymentDate] = useState<Date | undefined>();
   const [dismissedSlots, setDismissedSlots] = useState<Set<number>>(new Set());
   const [calendarsOpen, setCalendarsOpen] = useState(false);
-  const [billsListOpen, setBillsListOpen] = useState(true);
+  const [billsListOpen, setBillsListOpen] = useState(false);
   const [billsSummaryOpen, setBillsSummaryOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -692,21 +692,392 @@ const Bills = () => {
         <h1 className="text-2xl font-bold">My Bills Tab</h1>
       </div>
 
-      {/* Calendars - Collapsible */}
+      {/* My Bills */}
+      <Collapsible open={billsListOpen} onOpenChange={setBillsListOpen}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">My Bills</h2>
+          <div className="flex items-center gap-2">
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm">
+                {billsListOpen ? (
+                  <>
+                    <ChevronUp className="w-4 h-4 mr-2" />
+                    Hide Bills
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4 mr-2" />
+                    Show Bills
+                  </>
+                )}
+              </Button>
+            </CollapsibleTrigger>
+            <Button variant="secondary" onClick={() => setDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Bill
+            </Button>
+          </div>
+        </div>
+        <CollapsibleContent>
+      <div className="grid gap-4">
+        {bills.map((bill) => (
+          <Card key={bill.id} className="border-2 hover:shadow-card-hover transition-smooth">
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CardTitle>{bill.name}</CardTitle>
+                    <span className="text-xs px-2 py-1 bg-muted rounded-full">{bill.category}</span>
+                  </div>
+                  <CardDescription>
+                    {bill.bank_accounts.name}
+                    {bill.payment_date && ` • This Month: ${format(new Date(bill.payment_date), "MMM d")}`}
+                    {bill.payment_date_next && ` • Next Month: ${format(new Date(bill.payment_date_next), "MMM d")}`}
+                    {` • ${bill.scheduled_type}`}
+                  </CardDescription>
+                </div>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => handleEditBill(bill)}>
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDeleteBill(bill.id)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">This Month</p>
+                  {(() => {
+                    const paydayDate = toTzDate(bill.payment_date);
+                    const isPaydayPast = paydayDate && isPast(paydayDate) && !isToday(paydayDate);
+                    const displayAmount = isPaydayPast ? 0 : Number(bill.amount_now);
+                    return (
+                      <>
+                        <p className="text-2xl font-bold text-foreground">${formatCurrency(displayAmount)}</p>
+                        {isPaydayPast && paydayDate && (
+                          <p className="text-xs text-muted-foreground mt-1">Paid on {format(paydayDate, "MMM d")}</p>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Next Month</p>
+                  <p className="text-2xl font-bold text-foreground">${formatCurrency(Number(bill.amount_next))}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Expected amount</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+
+        {/* Default slots */}
+        {Array.from({ length: Math.max(0, 3 - bills.length) }).map((_, idx) => {
+          const slotNumber = bills.length + idx + 1;
+          const slotName = `Bill ${slotNumber}`;
+          if (dismissedSlots.has(slotNumber)) return null;
+
+          return (
+            <Card key={`slot-${slotNumber}`} className="border-2 border-dashed">
+              <CardContent className="py-6 flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="font-medium">{slotName}</p>
+                  <p className="text-sm text-muted-foreground">Create a recurring bill</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => handleDismissSlot(slotNumber)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                  <Button variant="secondary" onClick={() => openPrefilledDialog(slotName)}>
+                    Add
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Bills Summary */}
+      <Collapsible open={billsSummaryOpen} onOpenChange={setBillsSummaryOpen}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Bills Summary</h2>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" size="sm">
+              {billsSummaryOpen ? (
+                <>
+                  <ChevronUp className="w-4 h-4 mr-2" />
+                  Hide Summary
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4 mr-2" />
+                  Show Summary
+                </>
+              )}
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent>
+      <Card className="border-2">
+        <CardContent className="pt-6">
+          {/* Column Headers */}
+          <div className="grid grid-cols-3 gap-4 pb-3 border-b mb-3">
+            <div className="font-semibold text-sm">Category</div>
+            <div className="font-semibold text-sm text-center">This Month</div>
+            <div className="font-semibold text-sm text-center">Next Month</div>
+          </div>
+
+          <Accordion type="multiple" className="w-full">
+            {(() => {
+              let totalThisMonthSum = 0;
+              let totalNextMonthSum = 0;
+              
+              const categoryItems = ["Rent", "Need", "Want", "Debt", "Savings", "Investment"].map((category) => {
+                const categoryBills = bills.filter(b => b.category === category);
+              
+              // Calculate This Month totals
+              const billsThisMonth = categoryBills
+                .filter(b => {
+                  const d = toTzDate(b.payment_date);
+                  const dNext = toTzDate(b.payment_date_next);
+                  return (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
+                })
+                .map(b => {
+                  const d = toTzDate(b.payment_date);
+                  const dNext = toTzDate(b.payment_date_next);
+                  let amount = 0;
+                  let itemDate: Date | null = null;
+                  if (d && isSameMonth(d, thisMonth)) {
+                    amount = Number(b.amount_now);
+                    itemDate = d;
+                  } else if (dNext && isSameMonth(dNext, thisMonth)) {
+                    amount = Number(b.amount_next);
+                    itemDate = dNext;
+                  }
+                  return { bill: b, amount, itemDate };
+                });
+
+              const thisMonthTotal = billsThisMonth.reduce((sum, { amount }) => sum + amount, 0);
+              totalThisMonthSum += thisMonthTotal;
+
+              // Calculate Bills to Close and Bills Open for This Month
+              const billsToClose = billsThisMonth
+                .filter(({ itemDate }) => {
+                  if (!itemDate || !nextPaycheckDate) return false;
+                  return itemDate < nextPaycheckDate;
+                })
+                .reduce((sum, { amount }) => sum + amount, 0);
+
+              const billsOpen = billsThisMonth
+                .filter(({ itemDate }) => {
+                  if (!itemDate) return false;
+                  if (!nextPaycheckDate) return true;
+                  return itemDate >= nextPaycheckDate;
+                })
+                .reduce((sum, { amount }) => sum + amount, 0);
+              
+              // Calculate Next Month totals
+              const billsNextMonth = categoryBills
+                .filter(b => {
+                  const dNext = toTzDate(b.payment_date_next);
+                  const d = toTzDate(b.payment_date);
+                  return (dNext && isSameMonth(dNext, nextMonth)) || (d && isSameMonth(d, nextMonth));
+                })
+                .map(b => {
+                  const dNext = toTzDate(b.payment_date_next);
+                  const d = toTzDate(b.payment_date);
+                  let amount = 0;
+                  if (dNext && isSameMonth(dNext, nextMonth)) {
+                    amount = Number(b.amount_next);
+                  } else if (d && isSameMonth(d, nextMonth)) {
+                    amount = Number(b.amount_next);
+                  }
+                  return { bill: b, amount };
+                });
+
+              const nextMonthTotal = billsNextMonth.reduce((sum, { amount }) => sum + amount, 0);
+              totalNextMonthSum += nextMonthTotal;
+              
+              return (
+                <AccordionItem key={category} value={category} className="border-b">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="grid grid-cols-3 gap-4 w-full pr-4">
+                      <span className="font-semibold text-sm text-left">{category}</span>
+                      <span className="text-sm text-center">${formatCurrency(thisMonthTotal)}</span>
+                      <span className="text-sm text-center">${formatCurrency(nextMonthTotal)}</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="pt-4">
+                      {/* Get all unique bills for this category */}
+                      {(() => {
+                        const allBills = new Map<string, { bill: Bill; thisMonthAmount: number; nextMonthAmount: number; thisMonthDate: Date | null }>();
+                        
+                        // Add This Month bills
+                        billsThisMonth.forEach(({ bill, amount, itemDate }) => {
+                          if (!allBills.has(bill.id)) {
+                            allBills.set(bill.id, { bill, thisMonthAmount: amount, nextMonthAmount: 0, thisMonthDate: itemDate });
+                          } else {
+                            const existing = allBills.get(bill.id)!;
+                            existing.thisMonthAmount = amount;
+                            existing.thisMonthDate = itemDate;
+                          }
+                        });
+                        
+                        // Add Next Month bills
+                        billsNextMonth.forEach(({ bill, amount }) => {
+                          if (!allBills.has(bill.id)) {
+                            allBills.set(bill.id, { bill, thisMonthAmount: 0, nextMonthAmount: amount, thisMonthDate: null });
+                          } else {
+                            const existing = allBills.get(bill.id)!;
+                            existing.nextMonthAmount = amount;
+                          }
+                        });
+                        
+                        const uniqueBills = Array.from(allBills.values());
+                        
+                        if (uniqueBills.length === 0) {
+                          return <p className="text-xs text-muted-foreground py-1">No bills</p>;
+                        }
+                        
+                        return (
+                          <div className="space-y-1">
+                            {uniqueBills.map(({ bill, thisMonthAmount, nextMonthAmount, thisMonthDate }) => {
+                              const isToClose = thisMonthDate && nextPaycheckDate && thisMonthDate < nextPaycheckDate;
+                              return (
+                                <div key={bill.id} className="grid grid-cols-3 gap-4 items-center text-xs py-1 px-2 rounded bg-muted/50">
+                                  <span className="text-left">{bill.name}</span>
+                                  <span className={cn(
+                                    "text-center font-semibold",
+                                    thisMonthAmount > 0 && (isToClose ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400")
+                                  )}>
+                                    {thisMonthAmount > 0 ? `$${formatCurrency(thisMonthAmount)}` : '-'}
+                                  </span>
+                                  <span className="text-center font-semibold">
+                                    {nextMonthAmount > 0 ? `$${formatCurrency(nextMonthAmount)}` : '-'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            });
+            
+            return categoryItems;
+          })()}
+          </Accordion>
+
+          {/* Total Row */}
+          {(() => {
+            // Calculate totals by summing all category totals
+            let totalThisMonthSum = 0;
+            let totalNextMonthSum = 0;
+            
+            ["Rent", "Need", "Want", "Debt", "Savings", "Investment"].forEach((category) => {
+              const categoryBills = bills.filter(b => b.category === category);
+              
+              const billsThisMonth = categoryBills
+                .filter(b => {
+                  const d = toTzDate(b.payment_date);
+                  const dNext = toTzDate(b.payment_date_next);
+                  return (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
+                })
+                .map(b => {
+                  const d = toTzDate(b.payment_date);
+                  const dNext = toTzDate(b.payment_date_next);
+                  let amount = 0;
+                  if (d && isSameMonth(d, thisMonth)) {
+                    amount = Number(b.amount_now);
+                  } else if (dNext && isSameMonth(dNext, thisMonth)) {
+                    amount = Number(b.amount_next);
+                  }
+                  return { amount };
+                });
+              
+              const billsNextMonth = categoryBills
+                .filter(b => {
+                  const dNext = toTzDate(b.payment_date_next);
+                  const d = toTzDate(b.payment_date);
+                  return (dNext && isSameMonth(dNext, nextMonth)) || (d && isSameMonth(d, nextMonth));
+                })
+                .map(b => {
+                  const dNext = toTzDate(b.payment_date_next);
+                  const d = toTzDate(b.payment_date);
+                  let amount = 0;
+                  if (dNext && isSameMonth(dNext, nextMonth)) {
+                    amount = Number(b.amount_next);
+                  } else if (d && isSameMonth(d, nextMonth)) {
+                    amount = Number(b.amount_next);
+                  }
+                  return { amount };
+                });
+              
+              totalThisMonthSum += billsThisMonth.reduce((sum, { amount }) => sum + amount, 0);
+              totalNextMonthSum += billsNextMonth.reduce((sum, { amount }) => sum + amount, 0);
+            });
+            
+            return (
+              <div className="mt-4 pt-4 border-t-2">
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  <div className="font-bold text-sm">Total</div>
+                  <div className="text-sm text-center font-bold">${formatCurrency(totalThisMonthSum)}</div>
+                  <div className="text-sm text-center font-bold">${formatCurrency(totalNextMonthSum)}</div>
+                </div>
+                {/* Breakdown for This Month */}
+                <div className="pt-3 border-t">
+                  <div className="grid grid-cols-3 gap-4 text-xs">
+                    <div className="text-muted-foreground font-medium">This Month Breakdown:</div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Bills to Close:</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">${formatCurrency(billsToCloseBeforePaycheck)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Bills Open:</span>
+                        <span className="font-semibold text-yellow-600 dark:text-yellow-400">${formatCurrency(billsOpenAfterPaycheck)}</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 border-t">
+                        <span className="font-semibold">Total:</span>
+                        <span className="font-bold">${formatCurrency(totalThisMonthSum)}</span>
+                      </div>
+                    </div>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Bills Calendar */}
       <Collapsible open={calendarsOpen} onOpenChange={setCalendarsOpen}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Bills Calendars</h2>
+          <h2 className="text-xl font-semibold">Bills Calendar</h2>
           <CollapsibleTrigger asChild>
             <Button variant="outline" size="sm">
               {calendarsOpen ? (
                 <>
                   <ChevronUp className="w-4 h-4 mr-2" />
-                  Hide Bills Calendars
+                  Hide Bills Calendar
                 </>
               ) : (
                 <>
                   <ChevronDown className="w-4 h-4 mr-2" />
-                  See Bills Calendars
+                  Show Bills Calendar
                 </>
               )}
             </Button>
@@ -1331,377 +1702,6 @@ const Bills = () => {
             />
           </CardContent>
         </Card>
-      </div>
-        </CollapsibleContent>
-      </Collapsible>
-
-      {/* Bills Summary by Category - Collapsible */}
-      <Collapsible open={billsSummaryOpen} onOpenChange={setBillsSummaryOpen}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Bills Summary</h2>
-          <CollapsibleTrigger asChild>
-            <Button variant="outline" size="sm">
-              {billsSummaryOpen ? (
-                <>
-                  <ChevronUp className="w-4 h-4 mr-2" />
-                  Hide Summary
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="w-4 h-4 mr-2" />
-                  Show Summary
-                </>
-              )}
-            </Button>
-          </CollapsibleTrigger>
-        </div>
-        <CollapsibleContent>
-      <Card className="border-2">
-        <CardContent className="pt-6">
-          {/* Column Headers */}
-          <div className="grid grid-cols-3 gap-4 pb-3 border-b mb-3">
-            <div className="font-semibold text-sm">Category</div>
-            <div className="font-semibold text-sm text-center">This Month</div>
-            <div className="font-semibold text-sm text-center">Next Month</div>
-          </div>
-
-          <Accordion type="multiple" className="w-full">
-            {(() => {
-              let totalThisMonthSum = 0;
-              let totalNextMonthSum = 0;
-              
-              const categoryItems = ["Rent", "Need", "Want", "Debt", "Savings", "Investment"].map((category) => {
-                const categoryBills = bills.filter(b => b.category === category);
-              
-              // Calculate This Month totals
-              const billsThisMonth = categoryBills
-                .filter(b => {
-                  const d = toTzDate(b.payment_date);
-                  const dNext = toTzDate(b.payment_date_next);
-                  return (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
-                })
-                .map(b => {
-                  const d = toTzDate(b.payment_date);
-                  const dNext = toTzDate(b.payment_date_next);
-                  let amount = 0;
-                  let itemDate: Date | null = null;
-                  if (d && isSameMonth(d, thisMonth)) {
-                    amount = Number(b.amount_now);
-                    itemDate = d;
-                  } else if (dNext && isSameMonth(dNext, thisMonth)) {
-                    amount = Number(b.amount_next);
-                    itemDate = dNext;
-                  }
-                  return { bill: b, amount, itemDate };
-                });
-
-              const thisMonthTotal = billsThisMonth.reduce((sum, { amount }) => sum + amount, 0);
-              totalThisMonthSum += thisMonthTotal;
-
-              // Calculate Bills to Close and Bills Open for This Month
-              const billsToClose = billsThisMonth
-                .filter(({ itemDate }) => {
-                  if (!itemDate || !nextPaycheckDate) return false;
-                  return itemDate < nextPaycheckDate;
-                })
-                .reduce((sum, { amount }) => sum + amount, 0);
-
-              const billsOpen = billsThisMonth
-                .filter(({ itemDate }) => {
-                  if (!itemDate) return false;
-                  if (!nextPaycheckDate) return true;
-                  return itemDate >= nextPaycheckDate;
-                })
-                .reduce((sum, { amount }) => sum + amount, 0);
-              
-              // Calculate Next Month totals
-              const billsNextMonth = categoryBills
-                .filter(b => {
-                  const dNext = toTzDate(b.payment_date_next);
-                  const d = toTzDate(b.payment_date);
-                  return (dNext && isSameMonth(dNext, nextMonth)) || (d && isSameMonth(d, nextMonth));
-                })
-                .map(b => {
-                  const dNext = toTzDate(b.payment_date_next);
-                  const d = toTzDate(b.payment_date);
-                  let amount = 0;
-                  if (dNext && isSameMonth(dNext, nextMonth)) {
-                    amount = Number(b.amount_next);
-                  } else if (d && isSameMonth(d, nextMonth)) {
-                    amount = Number(b.amount_next);
-                  }
-                  return { bill: b, amount };
-                });
-
-              const nextMonthTotal = billsNextMonth.reduce((sum, { amount }) => sum + amount, 0);
-              totalNextMonthSum += nextMonthTotal;
-              
-              return (
-                <AccordionItem key={category} value={category} className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="grid grid-cols-3 gap-4 w-full pr-4">
-                      <span className="font-semibold text-sm text-left">{category}</span>
-                      <span className="text-sm text-center">${formatCurrency(thisMonthTotal)}</span>
-                      <span className="text-sm text-center">${formatCurrency(nextMonthTotal)}</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="pt-4">
-                      {/* Get all unique bills for this category */}
-                      {(() => {
-                        const allBills = new Map<string, { bill: Bill; thisMonthAmount: number; nextMonthAmount: number; thisMonthDate: Date | null }>();
-                        
-                        // Add This Month bills
-                        billsThisMonth.forEach(({ bill, amount, itemDate }) => {
-                          if (!allBills.has(bill.id)) {
-                            allBills.set(bill.id, { bill, thisMonthAmount: amount, nextMonthAmount: 0, thisMonthDate: itemDate });
-                          } else {
-                            const existing = allBills.get(bill.id)!;
-                            existing.thisMonthAmount = amount;
-                            existing.thisMonthDate = itemDate;
-                          }
-                        });
-                        
-                        // Add Next Month bills
-                        billsNextMonth.forEach(({ bill, amount }) => {
-                          if (!allBills.has(bill.id)) {
-                            allBills.set(bill.id, { bill, thisMonthAmount: 0, nextMonthAmount: amount, thisMonthDate: null });
-                          } else {
-                            const existing = allBills.get(bill.id)!;
-                            existing.nextMonthAmount = amount;
-                          }
-                        });
-                        
-                        const uniqueBills = Array.from(allBills.values());
-                        
-                        if (uniqueBills.length === 0) {
-                          return <p className="text-xs text-muted-foreground py-1">No bills</p>;
-                        }
-                        
-                        return (
-                          <div className="space-y-1">
-                            {uniqueBills.map(({ bill, thisMonthAmount, nextMonthAmount, thisMonthDate }) => {
-                              const isToClose = thisMonthDate && nextPaycheckDate && thisMonthDate < nextPaycheckDate;
-                              return (
-                                <div key={bill.id} className="grid grid-cols-3 gap-4 items-center text-xs py-1 px-2 rounded bg-muted/50">
-                                  <span className="text-left">{bill.name}</span>
-                                  <span className={cn(
-                                    "text-center font-semibold",
-                                    thisMonthAmount > 0 && (isToClose ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400")
-                                  )}>
-                                    {thisMonthAmount > 0 ? `$${formatCurrency(thisMonthAmount)}` : '-'}
-                                  </span>
-                                  <span className="text-center font-semibold">
-                                    {nextMonthAmount > 0 ? `$${formatCurrency(nextMonthAmount)}` : '-'}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            });
-            
-            return categoryItems;
-          })()}
-          </Accordion>
-
-          {/* Total Row */}
-          {(() => {
-            // Calculate totals by summing all category totals
-            let totalThisMonthSum = 0;
-            let totalNextMonthSum = 0;
-            
-            ["Rent", "Need", "Want", "Debt", "Savings", "Investment"].forEach((category) => {
-              const categoryBills = bills.filter(b => b.category === category);
-              
-              const billsThisMonth = categoryBills
-                .filter(b => {
-                  const d = toTzDate(b.payment_date);
-                  const dNext = toTzDate(b.payment_date_next);
-                  return (d && isSameMonth(d, thisMonth)) || (dNext && isSameMonth(dNext, thisMonth));
-                })
-                .map(b => {
-                  const d = toTzDate(b.payment_date);
-                  const dNext = toTzDate(b.payment_date_next);
-                  let amount = 0;
-                  if (d && isSameMonth(d, thisMonth)) {
-                    amount = Number(b.amount_now);
-                  } else if (dNext && isSameMonth(dNext, thisMonth)) {
-                    amount = Number(b.amount_next);
-                  }
-                  return { amount };
-                });
-              
-              const billsNextMonth = categoryBills
-                .filter(b => {
-                  const dNext = toTzDate(b.payment_date_next);
-                  const d = toTzDate(b.payment_date);
-                  return (dNext && isSameMonth(dNext, nextMonth)) || (d && isSameMonth(d, nextMonth));
-                })
-                .map(b => {
-                  const dNext = toTzDate(b.payment_date_next);
-                  const d = toTzDate(b.payment_date);
-                  let amount = 0;
-                  if (dNext && isSameMonth(dNext, nextMonth)) {
-                    amount = Number(b.amount_next);
-                  } else if (d && isSameMonth(d, nextMonth)) {
-                    amount = Number(b.amount_next);
-                  }
-                  return { amount };
-                });
-              
-              totalThisMonthSum += billsThisMonth.reduce((sum, { amount }) => sum + amount, 0);
-              totalNextMonthSum += billsNextMonth.reduce((sum, { amount }) => sum + amount, 0);
-            });
-            
-            return (
-              <div className="mt-4 pt-4 border-t-2">
-                <div className="grid grid-cols-3 gap-4 mb-3">
-                  <div className="font-bold text-sm">Total</div>
-                  <div className="text-sm text-center font-bold">${formatCurrency(totalThisMonthSum)}</div>
-                  <div className="text-sm text-center font-bold">${formatCurrency(totalNextMonthSum)}</div>
-                </div>
-                {/* Breakdown for This Month */}
-                <div className="pt-3 border-t">
-                  <div className="grid grid-cols-3 gap-4 text-xs">
-                    <div className="text-muted-foreground font-medium">This Month Breakdown:</div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Bills to Close:</span>
-                        <span className="font-semibold text-green-600 dark:text-green-400">${formatCurrency(billsToCloseBeforePaycheck)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Bills Open:</span>
-                        <span className="font-semibold text-yellow-600 dark:text-yellow-400">${formatCurrency(billsOpenAfterPaycheck)}</span>
-                      </div>
-                      <div className="flex justify-between items-center pt-1 border-t">
-                        <span className="font-semibold">Total:</span>
-                        <span className="font-bold">${formatCurrency(totalThisMonthSum)}</span>
-                      </div>
-                    </div>
-                    <div></div>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-        </CardContent>
-      </Card>
-        </CollapsibleContent>
-      </Collapsible>
-
-      {/* Bills List */}
-      <Collapsible open={billsListOpen} onOpenChange={setBillsListOpen}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">My Bills</h2>
-          <div className="flex items-center gap-2">
-            <CollapsibleTrigger asChild>
-              <Button variant="outline" size="sm">
-                {billsListOpen ? (
-                  <>
-                    <ChevronUp className="w-4 h-4 mr-2" />
-                    Hide Bills
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="w-4 h-4 mr-2" />
-                    Show Bills
-                  </>
-                )}
-              </Button>
-            </CollapsibleTrigger>
-            <Button variant="secondary" onClick={() => setDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Bill
-            </Button>
-          </div>
-        </div>
-        <CollapsibleContent>
-      <div className="grid gap-4">
-        {bills.map((bill) => (
-          <Card key={bill.id} className="border-2 hover:shadow-card-hover transition-smooth">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <CardTitle>{bill.name}</CardTitle>
-                    <span className="text-xs px-2 py-1 bg-muted rounded-full">{bill.category}</span>
-                  </div>
-                  <CardDescription>
-                    {bill.bank_accounts.name}
-                    {bill.payment_date && ` • This Month: ${format(new Date(bill.payment_date), "MMM d")}`}
-                    {bill.payment_date_next && ` • Next Month: ${format(new Date(bill.payment_date_next), "MMM d")}`}
-                    {` • ${bill.scheduled_type}`}
-                  </CardDescription>
-                </div>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => handleEditBill(bill)}>
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDeleteBill(bill.id)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">This Month</p>
-                  {(() => {
-                    const paydayDate = toTzDate(bill.payment_date);
-                    const isPaydayPast = paydayDate && isPast(paydayDate) && !isToday(paydayDate);
-                    const displayAmount = isPaydayPast ? 0 : Number(bill.amount_now);
-                    return (
-                      <>
-                        <p className="text-2xl font-bold text-foreground">${formatCurrency(displayAmount)}</p>
-                        {isPaydayPast && paydayDate && (
-                          <p className="text-xs text-muted-foreground mt-1">Paid on {format(paydayDate, "MMM d")}</p>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Next Month</p>
-                  <p className="text-2xl font-bold text-foreground">${formatCurrency(Number(bill.amount_next))}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Expected amount</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-
-        {/* Default slots */}
-        {Array.from({ length: Math.max(0, 3 - bills.length) }).map((_, idx) => {
-          const slotNumber = bills.length + idx + 1;
-          const slotName = `Bill ${slotNumber}`;
-          if (dismissedSlots.has(slotNumber)) return null;
-
-          return (
-            <Card key={`slot-${slotNumber}`} className="border-2 border-dashed">
-              <CardContent className="py-6 flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="font-medium">{slotName}</p>
-                  <p className="text-sm text-muted-foreground">Create a recurring bill</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => handleDismissSlot(slotNumber)}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                  <Button variant="secondary" onClick={() => openPrefilledDialog(slotName)}>
-                    Add
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
       </div>
         </CollapsibleContent>
       </Collapsible>
