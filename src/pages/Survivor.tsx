@@ -308,14 +308,25 @@ const Survivor = () => {
   const monthsCoveredFromCloseOut = getMonthsCovered(survivorTab, fullMonthRanges.totals.total);
 
   // Budget calculations - group bills by category for full month
+  // Use amount_next to match Bills Summary "Next Month" column
   const today = startOfToday();
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth();
   
-  // Filter bills for current month
+  // Filter bills for current month - check both payment_date and payment_date_next
+  // Use amount_next for the calculation to match "Next Month" column
   const billsThisMonth = bills.filter(bill => {
-    const billDate = new Date(bill.payment_date);
-    return billDate.getFullYear() === currentYear && billDate.getMonth() === currentMonth;
+    const billDate = bill.payment_date ? new Date(bill.payment_date) : null;
+    const billDateNext = bill.payment_date_next ? new Date(bill.payment_date_next) : null;
+    
+    // Include if payment_date_next is in current month, or payment_date is in current month
+    if (billDateNext && billDateNext.getFullYear() === currentYear && billDateNext.getMonth() === currentMonth) {
+      return true;
+    }
+    if (billDate && billDate.getFullYear() === currentYear && billDate.getMonth() === currentMonth) {
+      return true;
+    }
+    return false;
   });
   
   const budgetByCategory = billsThisMonth.reduce((acc, bill) => {
@@ -327,14 +338,16 @@ const Survivor = () => {
         bills: [],
       };
     }
-    acc[category].total += Number(bill.amount_now);
+    // Use amount_next to match Bills Summary "Next Month" column
+    acc[category].total += Number(bill.amount_next);
     acc[category].bills.push(bill);
     return acc;
   }, {} as Record<string, { category: string; total: number; bills: Bill[] }>);
 
   // Calculate full month income
   const fullMonthIncome = getFullMonthIncome(incomes);
-  const totalBudget = fullMonthRanges.totals.total; // Use full month total from ranges
+  // Calculate total budget from category totals (using amount_next)
+  const totalBudget = Object.values(budgetByCategory).reduce((sum, cat) => sum + cat.total, 0);
   const coasterTab = fullMonthIncome - totalBudget;
   
   // Category order: Rent, Need, Want, Debt, Savings, Investment
@@ -1621,7 +1634,7 @@ const Survivor = () => {
           <CardContent className="p-0 animate-in slide-in-from-top-2 duration-200">
             <div className="divide-y divide-border">
               {/* Income Section */}
-              <div className="p-4">
+              <div className="p-4 bg-gradient-to-br from-muted/40 to-muted/20">
                 <div className="flex items-center gap-2 mb-2">
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                     INCOME
@@ -1693,7 +1706,7 @@ const Survivor = () => {
                             {category.bills.map((bill) => (
                               <div key={bill.id} className="flex justify-between items-center text-xs py-1.5 px-2 rounded hover:bg-muted/30">
                                 <span className="text-muted-foreground truncate pr-2">{bill.name}</span>
-                                <span className="font-medium flex-shrink-0 text-foreground">${formatCurrency(Number(bill.amount_now))}</span>
+                                <span className="font-medium flex-shrink-0 text-foreground">${formatCurrency(Number(bill.amount_next))}</span>
                               </div>
                             ))}
                           </div>
@@ -1753,7 +1766,7 @@ const Survivor = () => {
                               {category.bills.map((bill) => (
                                 <div key={bill.id} className="flex justify-between items-center text-xs py-1.5 px-2 rounded hover:bg-muted/30">
                                   <span className="text-muted-foreground truncate pr-2">{bill.name}</span>
-                                  <span className="font-medium flex-shrink-0 text-foreground">${formatCurrency(Number(bill.amount_now))}</span>
+                                  <span className="font-medium flex-shrink-0 text-foreground">${formatCurrency(Number(bill.amount_next))}</span>
                                 </div>
                               ))}
                             </div>
@@ -1786,15 +1799,10 @@ const Survivor = () => {
                       ${formatCurrency(coasterTab)}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {fullMonthIncome > 0 ? formatCurrency((coasterTab / fullMonthIncome) * 100) : "0.00"}% of income
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    Coaster Tab Per Diem: ${formatCurrency(coasterTab / 30.5)}
+                    <InfoTooltip content="Your daily spending budget. Divide your Coaster Tab by 30.5 (average days per month) to see how much you can spend each day." />
                   </div>
-                  {coastingDays > 0 && (
-                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                      Coaster Tab Per Diem: ${formatCurrency(coasterTab / coastingDays)}
-                      <InfoTooltip content="Your daily spending budget. Divide your Coaster Tab by the number of days until your next paycheck to see how much you can spend each day." />
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
