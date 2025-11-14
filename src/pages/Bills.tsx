@@ -824,13 +824,13 @@ const Bills = () => {
           </CollapsibleTrigger>
         </div>
         <CollapsibleContent>
-      <Card className="border-2">
+      <Card className="border-2 max-w-2xl mx-auto">
         <CardContent className="pt-6">
           {/* Column Headers */}
-          <div className="grid grid-cols-3 gap-4 pb-3 border-b mb-3">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-2 pb-3 border-b mb-3">
             <div className="font-semibold text-sm">Category</div>
-            <div className="font-semibold text-sm text-center">This Month</div>
-            <div className="font-semibold text-sm text-center">Next Month</div>
+            <div className="font-semibold text-sm text-right min-w-[100px]">This Month</div>
+            <div className="font-semibold text-sm text-right min-w-[100px]">Next Month</div>
           </div>
 
           <Accordion type="multiple" className="w-full">
@@ -907,10 +907,10 @@ const Bills = () => {
               return (
                 <AccordionItem key={category} value={category} className="border-b">
                   <AccordionTrigger className="hover:no-underline">
-                    <div className="grid grid-cols-3 gap-4 w-full pr-4">
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-2 w-full pr-4">
                       <span className="font-semibold text-sm text-left">{category}</span>
-                      <span className="text-sm text-center">${formatCurrency(thisMonthTotal)}</span>
-                      <span className="text-sm text-center">${formatCurrency(nextMonthTotal)}</span>
+                      <span className="text-sm text-right min-w-[100px]">${formatCurrency(thisMonthTotal)}</span>
+                      <span className="text-sm text-right min-w-[100px]">${formatCurrency(nextMonthTotal)}</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -951,15 +951,15 @@ const Bills = () => {
                             {uniqueBills.map(({ bill, thisMonthAmount, nextMonthAmount, thisMonthDate }) => {
                               const isToClose = thisMonthDate && nextPaycheckDate && thisMonthDate < nextPaycheckDate;
                               return (
-                                <div key={bill.id} className="grid grid-cols-3 gap-4 items-center text-xs py-1 px-2 rounded bg-muted/50">
+                                <div key={bill.id} className="grid grid-cols-[1fr_auto_auto] gap-2 items-center text-xs py-1 px-2 rounded bg-muted/50">
                                   <span className="text-left">{bill.name}</span>
                                   <span className={cn(
-                                    "text-center font-semibold",
+                                    "text-right font-semibold min-w-[100px]",
                                     thisMonthAmount > 0 && (isToClose ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400")
                                   )}>
                                     {thisMonthAmount > 0 ? `$${formatCurrency(thisMonthAmount)}` : '-'}
                                   </span>
-                                  <span className="text-center font-semibold">
+                                  <span className="text-right font-semibold min-w-[100px]">
                                     {nextMonthAmount > 0 ? `$${formatCurrency(nextMonthAmount)}` : '-'}
                                   </span>
                                 </div>
@@ -1029,30 +1029,29 @@ const Bills = () => {
             
             return (
               <div className="mt-4 pt-4 border-t-2">
-                <div className="grid grid-cols-3 gap-4 mb-3">
+                <div className="grid grid-cols-[1fr_auto_auto] gap-2 mb-3">
                   <div className="font-bold text-sm">Total</div>
-                  <div className="text-sm text-center font-bold">${formatCurrency(totalThisMonthSum)}</div>
-                  <div className="text-sm text-center font-bold">${formatCurrency(totalNextMonthSum)}</div>
+                  <div className="text-sm text-right font-bold min-w-[100px]">${formatCurrency(totalThisMonthSum)}</div>
+                  <div className="text-sm text-right font-bold min-w-[100px]">${formatCurrency(totalNextMonthSum)}</div>
                 </div>
                 {/* Breakdown for This Month */}
                 <div className="pt-3 border-t">
-                  <div className="grid grid-cols-3 gap-4 text-xs">
-                    <div className="text-muted-foreground font-medium">This Month Breakdown:</div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between items-center">
+                  <div className="text-xs">
+                    <div className="text-muted-foreground font-medium mb-2">This Month Breakdown:</div>
+                    <div className="space-y-1.5 pl-4">
+                      <div className="flex justify-between items-center max-w-xs">
                         <span className="text-muted-foreground">Bills to Close:</span>
                         <span className="font-semibold text-green-600 dark:text-green-400">${formatCurrency(billsToCloseBeforePaycheck)}</span>
                       </div>
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center max-w-xs">
                         <span className="text-muted-foreground">Bills Open:</span>
                         <span className="font-semibold text-yellow-600 dark:text-yellow-400">${formatCurrency(billsOpenAfterPaycheck)}</span>
                       </div>
-                      <div className="flex justify-between items-center pt-1 border-t">
+                      <div className="flex justify-between items-center pt-1 border-t max-w-xs">
                         <span className="font-semibold">Total:</span>
                         <span className="font-bold">${formatCurrency(totalThisMonthSum)}</span>
                       </div>
                     </div>
-                    <div></div>
                   </div>
                 </div>
               </div>
