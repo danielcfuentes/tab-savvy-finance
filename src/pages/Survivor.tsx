@@ -81,6 +81,7 @@ const Survivor = () => {
   const [expandedFuturePaychecks, setExpandedFuturePaychecks] = useState<Set<string>>(new Set());
   const [expandedBudgetCategories, setExpandedBudgetCategories] = useState<Set<string>>(new Set());
   const [expandedMultipleAbekBalance, setExpandedMultipleAbekBalance] = useState(false);
+  const [expandedTotalTab, setExpandedTotalTab] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -527,13 +528,13 @@ const Survivor = () => {
         {isExpanded && (
           <CardContent className="p-0 animate-in slide-in-from-top-2 duration-200">
             <div className="divide-y divide-border">
-              {/* Section 1: Real Balance (Collapsible) */}
+              {/* Section 1: Real Cash (Collapsible) */}
               <div 
                 className={cn(
-                  "cursor-pointer transition-all duration-200 group border-l-4",
+                  "cursor-pointer transition-all duration-200 group",
                   accountData.realBalance >= 0 && accountData.isBankAccount
-                    ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
-                    : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
+                    ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30" 
+                    : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30"
                 )}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -552,22 +553,19 @@ const Survivor = () => {
                       </p>
                     </div>
                     {/* Coasting Expenses */}
-                    <div 
-                      className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleCoastingExpensesExpanded(accountData.id);
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <div 
+                        className="cursor-pointer hover:bg-muted/30 rounded transition-colors flex items-center justify-between gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleCoastingExpensesExpanded(accountData.id);
+                        }}
+                      >
                         <div className="flex-1">
                           <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
                             Coasting Expenses
                           </p>
-                          <p className={cn(
-                            "text-sm font-bold",
-                            accountData.isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
-                          )}>
+                          <p className="text-lg font-bold text-foreground">
                             {accountData.coastingExpenses > 0 
                               ? (accountData.isBankAccount ? `(${formatCurrency(accountData.coastingExpenses)})` : `+${formatCurrency(accountData.coastingExpenses)}`)
                               : '-'
@@ -626,7 +624,7 @@ const Survivor = () => {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1">
                       <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                        {accountData.isBankAccount ? "Real Balance" : accountData.isCreditAccount ? "Real Credit Balance" : "Real Balance"}
+                        {accountData.isBankAccount ? "Real Cash" : accountData.isCreditAccount ? "Real Credit Cash" : "Real Cash"}
                       </p>
                       <p className={cn(
                         "text-xl md:text-2xl font-bold",
@@ -651,10 +649,10 @@ const Survivor = () => {
               {/* Section 2: Closed Out (Collapsible) */}
               <div 
                 className={cn(
-                  "cursor-pointer transition-all duration-200 group border-l-4",
+                  "cursor-pointer transition-all duration-200 group",
                   accountData.closedTab >= 0
-                    ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
-                    : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
+                    ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30" 
+                    : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30"
                 )}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -663,10 +661,10 @@ const Survivor = () => {
               >
                 {expandedClosedOut.has(accountData.id) && (
                   <div className="px-4 pt-4 space-y-3 border-b-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
-                    {/* Real Balance */}
+                    {/* Real Cash */}
                     <div>
                       <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
-                        Real Balance
+                        Real Cash
                       </p>
                       <p className={cn(
                         "text-lg font-bold",
@@ -760,10 +758,10 @@ const Survivor = () => {
               {/* Section 3: Abek Balance (Collapsible) */}
               <div 
                 className={cn(
-                  "cursor-pointer transition-all duration-200 group border-l-4",
+                  "cursor-pointer transition-all duration-200 group",
                   accountData.abekBalance >= 0 && accountData.isBankAccount
-                    ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
-                    : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
+                    ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30" 
+                    : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30"
                 )}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1026,20 +1024,44 @@ const Survivor = () => {
       ? "bg-gradient-to-br from-green-600 to-green-700 dark:from-green-700 dark:to-green-800"
       : "bg-gradient-to-br from-pink-500 to-pink-600 dark:from-pink-600 dark:to-pink-700";
 
+    const totalTabKey = isBankAccount ? "total-bank" : "total-credit";
+    const isTotalTabExpanded = expandedTotalTab.has(totalTabKey);
+
                                 return (
       <Card className="border-2 shadow-lg hover:shadow-xl transition-shadow">
-        <CardHeader className={cn(headerColor, "pb-3 px-4 pt-4")}>
-          <CardTitle className="text-white text-base font-bold">Total Tab</CardTitle>
+        <CardHeader 
+          className={cn(headerColor, "pb-3 px-4 pt-4 cursor-pointer transition-all duration-200 group")}
+          onClick={() => {
+            const newExpanded = new Set(expandedTotalTab);
+            if (newExpanded.has(totalTabKey)) {
+              newExpanded.delete(totalTabKey);
+            } else {
+              newExpanded.add(totalTabKey);
+            }
+            setExpandedTotalTab(newExpanded);
+          }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-white text-base font-bold">Total Tab</CardTitle>
+            <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+              {isTotalTabExpanded ? (
+                <ChevronDown className="w-4 h-4 text-white" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-white" />
+              )}
+            </div>
+          </div>
         </CardHeader>
+        {isTotalTabExpanded && (
         <CardContent className="p-0">
           <div className="divide-y divide-border">
-            {/* Section 1: Real Balance (Collapsible) */}
+            {/* Section 1: Real Cash (Collapsible) */}
             <div 
               className={cn(
-                "cursor-pointer transition-all duration-200 group border-l-4",
+                "cursor-pointer transition-all duration-200 group",
                 totalRealBal >= 0 && isBankAccount
-                  ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
-                  : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
+                  ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30" 
+                  : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30"
               )}
               onClick={() => {
                 const newExpanded = new Set(expandedRealBalance);
@@ -1064,29 +1086,26 @@ const Survivor = () => {
                     </p>
                   </div>
                   {/* Coasting Expenses */}
-                  <div 
-                    className="cursor-pointer hover:bg-muted/30 rounded p-2 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newExpanded = new Set(expandedCoastingExpenses);
-                      const key = isBankAccount ? "total-bank" : "total-credit";
-                      if (newExpanded.has(key)) {
-                        newExpanded.delete(key);
-                      } else {
-                        newExpanded.add(key);
-                      }
-                      setExpandedCoastingExpenses(newExpanded);
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div 
+                      className="cursor-pointer hover:bg-muted/30 rounded transition-colors flex items-center justify-between gap-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newExpanded = new Set(expandedCoastingExpenses);
+                        const key = isBankAccount ? "total-bank" : "total-credit";
+                        if (newExpanded.has(key)) {
+                          newExpanded.delete(key);
+                        } else {
+                          newExpanded.add(key);
+                        }
+                        setExpandedCoastingExpenses(newExpanded);
+                      }}
+                    >
                       <div className="flex-1">
                         <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
                           Coasting Expenses
                         </p>
-                        <p className={cn(
-                          "text-sm font-bold",
-                          isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
-                        )}>
+                        <p className="text-lg font-bold text-foreground">
                           {totalCoastingExp > 0 
                             ? (isBankAccount ? `(${formatCurrency(totalCoastingExp)})` : `+${formatCurrency(totalCoastingExp)}`)
                             : '-'
@@ -1148,7 +1167,7 @@ const Survivor = () => {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex-1">
                     <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                      {isBankAccount ? "Real Balance" : "Real Credit Balance"}
+                      {isBankAccount ? "Real Cash" : "Real Credit Cash"}
                     </p>
                     <p className={cn(
                       "text-xl md:text-2xl font-bold",
@@ -1170,14 +1189,14 @@ const Survivor = () => {
               </div>
             </div>
                   
-            {/* Section 2: Closed Out (Collapsible) */}
-            <div 
-              className={cn(
-                "cursor-pointer transition-all duration-200 group border-l-4",
-                totalClosedTab >= 0 && isBankAccount
-                  ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
-                  : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
-              )}
+              {/* Section 2: Closed Out (Collapsible) */}
+              <div 
+                className={cn(
+                  "cursor-pointer transition-all duration-200 group",
+                  totalClosedTab >= 0 && isBankAccount
+                    ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30" 
+                    : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30"
+                )}
               onClick={() => {
                 const newExpanded = new Set(expandedClosedOut);
                 const key = isBankAccount ? "total-bank" : "total-credit";
@@ -1191,10 +1210,10 @@ const Survivor = () => {
             >
               {totalClosedOutExpanded && (
                 <div className="px-4 pt-4 space-y-3 border-b-2 border-border/50 bg-white/50 dark:bg-gray-900/20">
-                  {/* Real Balance */}
+                  {/* Real Cash */}
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
-                      Real Balance
+                      Real Cash
                     </p>
                     <p className={cn(
                       "text-lg font-bold",
@@ -1295,10 +1314,10 @@ const Survivor = () => {
             {/* Section 3: Abek Balance (Collapsible) */}
             <div 
               className={cn(
-                "cursor-pointer transition-all duration-200 group border-l-4",
+                "cursor-pointer transition-all duration-200 group",
                 totalAbekBalance >= 0 && isBankAccount
-                  ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30 border-green-400 dark:border-green-600" 
-                  : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30 border-red-400 dark:border-red-600"
+                  ? "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 hover:from-green-100 dark:hover:from-green-900/30" 
+                  : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 hover:from-red-100 dark:hover:from-red-900/30"
               )}
               onClick={() => {
                 const newExpanded = new Set(expandedAbekBalance);
@@ -1492,6 +1511,7 @@ const Survivor = () => {
             </div>
           </div>
         </CardContent>
+        )}
                           </Card>
                         );
   };

@@ -28,6 +28,7 @@ const RealBank = () => {
   const [loading, setLoading] = useState(true);
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   const [expandedExpenses, setExpandedExpenses] = useState<Set<string>>(new Set());
+  const [expandedTotalTab, setExpandedTotalTab] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -216,10 +217,7 @@ const RealBank = () => {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Coasting Expenses</p>
-                    <p className={cn(
-                      "text-base md:text-lg font-bold",
-                      isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
-                    )}>
+                    <p className="text-base md:text-lg font-bold text-foreground">
                       {expensesTotal > 0 
                         ? (isBankAccount ? `(${formatCurrency(expensesTotal)})` : `+${formatCurrency(expensesTotal)}`)
                         : '-'
@@ -282,7 +280,7 @@ const RealBank = () => {
                   : "from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10"
               )}>
                 <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                  {isBankAccount ? "Real Balance" : "Real Credit Balance"}
+                  {isBankAccount ? "Real Cash" : "Real Credit Cash"}
                 </p>
                 <p className={cn(
                   "text-xl md:text-2xl font-bold",
@@ -320,11 +318,35 @@ const RealBank = () => {
           return creditAccounts.some(acc => acc.id === item.bank_account_id);
         });
 
+    const totalTabKey = isBankAccount ? "total-bank" : "total-credit";
+    const isTotalTabExpanded = expandedTotalTab.has(totalTabKey);
+
     return (
       <Card className="border-2 shadow-lg hover:shadow-xl transition-shadow">
-        <CardHeader className={cn(headerColor, "pb-3 px-4 pt-4")}>
-          <CardTitle className="text-white text-base font-bold">Total Tab</CardTitle>
+        <CardHeader 
+          className={cn(headerColor, "pb-3 px-4 pt-4 cursor-pointer transition-all duration-200 group")}
+          onClick={() => {
+            const newExpanded = new Set(expandedTotalTab);
+            if (newExpanded.has(totalTabKey)) {
+              newExpanded.delete(totalTabKey);
+            } else {
+              newExpanded.add(totalTabKey);
+            }
+            setExpandedTotalTab(newExpanded);
+          }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-white text-base font-bold">Total Tab</CardTitle>
+            <div className="transition-transform duration-200 group-hover:scale-110 flex-shrink-0">
+              {isTotalTabExpanded ? (
+                <ChevronDown className="w-4 h-4 text-white" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-white" />
+              )}
+            </div>
+          </div>
         </CardHeader>
+        {isTotalTabExpanded && (
         <CardContent className="p-0">
           <div className="divide-y divide-border">
             <div className="p-4 bg-gradient-to-br from-muted/40 to-muted/20">
@@ -348,10 +370,7 @@ const RealBank = () => {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1">
                   <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Coasting Expenses</p>
-                  <p className={cn(
-                    "text-base md:text-lg font-bold",
-                    isBankAccount ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
-                  )}>
+                  <p className="text-base md:text-lg font-bold text-foreground">
                     {isBankAccount 
                       ? `(${formatCurrency(totalExpenses)})`
                       : `+${formatCurrency(totalExpenses)}`
@@ -416,7 +435,7 @@ const RealBank = () => {
                 : "from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10"
             )}>
               <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                {isBankAccount ? "Real Balance" : "Real Credit Balance"}
+                {isBankAccount ? "Real Cash" : "Real Credit Cash"}
               </p>
               <p className={cn(
                 "text-xl md:text-2xl font-bold",
@@ -429,6 +448,7 @@ const RealBank = () => {
             </div>
           </div>
         </CardContent>
+        )}
       </Card>
     );
   };
