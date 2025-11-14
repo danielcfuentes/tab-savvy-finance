@@ -1703,6 +1703,28 @@ const Bills = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bills Breakdown Summary */}
+      <Card className="border-2 mt-4">
+        <CardContent className="pt-6">
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Bills to Close:</span>
+              <span className="text-sm font-semibold text-green-600 dark:text-green-400">${formatCurrency(billsToCloseBeforePaycheck)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Bills Open:</span>
+              <span className="text-sm font-semibold text-yellow-600 dark:text-yellow-400">${formatCurrency(billsOpenAfterPaycheck)}</span>
+            </div>
+            <div className="pt-2 border-t">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-semibold">Total:</span>
+                <span className="text-sm font-bold">${formatCurrency(billsToCloseBeforePaycheck + billsOpenAfterPaycheck)}</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
         </CollapsibleContent>
       </Collapsible>
 
