@@ -753,12 +753,13 @@ const Bills = () => {
                   {(() => {
                     const paydayDate = toTzDate(bill.payment_date);
                     const isPaydayPast = paydayDate && isPast(paydayDate) && !isToday(paydayDate);
-                    const displayAmount = isPaydayPast ? 0 : Number(bill.amount_now);
+                    // Always show the actual amount, even if the due date has passed
+                    const displayAmount = Number(bill.amount_now);
                     return (
                       <>
                         <p className="text-2xl font-bold text-foreground">${formatCurrency(displayAmount)}</p>
                         {isPaydayPast && paydayDate && (
-                          <p className="text-xs text-muted-foreground mt-1">Paid on {format(paydayDate, "MMM d")}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Due on {format(paydayDate, "MMM d")}</p>
                         )}
                       </>
                     );
@@ -1316,6 +1317,9 @@ const Bills = () => {
                     // Always use dark text color so date number is visible
                     const billTextColor = "#000000";
                     
+                    // Check if this is today's date
+                    const isDateToday = isSameMonth(date, thisMonth) && isToday(date);
+                    
                     buttonProps.style = {
                       ...props.style,
                       backgroundColor: billBackgroundColor,
@@ -1331,8 +1335,8 @@ const Bills = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      border: '2px solid #000000',
-                      boxShadow: 'none',
+                      border: isDateToday ? '2px solid #F59E0B' : '2px solid #000000',
+                      boxShadow: isDateToday ? '0 1px 3px rgba(245, 158, 11, 0.2)' : 'none',
                     };
                     buttonProps.className = cn(
                       className, 
@@ -1435,7 +1439,12 @@ const Bills = () => {
                       baseStyle.color = textColor;
                     }
                     
-                    // No special today styling - keep it clean
+                    // Add dark yellow border for today's date
+                    if (isDateToday) {
+                      baseStyle.border = '2px solid #F59E0B';
+                      baseStyle.fontWeight = '600';
+                      baseStyle.boxShadow = '0 1px 3px rgba(245, 158, 11, 0.2)';
+                    }
                     
                     buttonProps.style = baseStyle;
                   } else {
