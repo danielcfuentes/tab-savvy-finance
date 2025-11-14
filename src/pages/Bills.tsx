@@ -1128,14 +1128,7 @@ const Bills = () => {
           border-radius: 0.5rem !important;
         }
         
-        .rdp button.rdp-day.rdp-day_today:not([class*="cal-"]):not([class*="bills-past"]):not([style*="background-color"]) {
-          background-color: #FEF9E7 !important;
-          color: #856404 !important;
-          font-weight: 600 !important;
-          border: 2px solid #F59E0B !important;
-          border-radius: 0.5rem !important;
-          box-shadow: 0 1px 3px rgba(245, 158, 11, 0.2) !important;
-        }
+        /* Today styling handled in Day component logic */
         
         .rdp button.rdp-day[class*="bills-past"] {
           background-color: #E0E0E0 !important;
@@ -1146,76 +1139,35 @@ const Bills = () => {
           opacity: 0.8 !important;
         }
         
-        /* Date range highlighting for This Month */
-        .rdp button.rdp-day.date-before-today:not([class*="cal-"]):not([class*="bills-past"]) {
-          background-color: #E5E5E5 !important;
-          color: #757575 !important;
-        }
+        /* Date range highlighting handled in Day component logic */
         
-        .rdp button.rdp-day.date-today-to-paycheck:not([class*="cal-"]):not([class*="bills-past"]) {
-          background-color: #FEF9E7 !important;
-          color: #856404 !important;
-        }
-        
-        .rdp button.rdp-day.date-after-paycheck:not([class*="cal-"]):not([class*="bills-past"]) {
-          background-color: #F5F5F5 !important;
-          color: #757575 !important;
-        }
-        
-        /* All dates in Next Month calendar */
-        .rdp button.rdp-day.next-month-date:not([class*="cal-"]):not([class*="bills-past"]) {
-          background-color: #F5F5F5 !important;
-          color: #757575 !important;
-        }
-        
+        /* Bills on dates - black outline only for This Month */
         ${bills
           .map((_, idx) => {
-            const color = colorPalette[idx % colorPalette.length];
             return `
               .rdp button.cal-${idx}-this,
               .rdp button.rdp-day.cal-${idx}-this,
               .rdp button[class*="cal-${idx}-this"],
               .rdp .rdp-day.cal-${idx}-this,
               .rdp [class*="cal-${idx}-this"] {
-                background-color: ${color} !important;
-                background: ${color} !important;
-                color: #FFFFFF !important;
-                font-weight: 700 !important;
-                border-radius: 0.5rem !important;
-                box-shadow: 0 2px 4px ${color}33 !important;
+                border: 2px solid #000000 !important;
+                border-radius: 0.25rem !important;
+                box-shadow: none !important;
+                color: #000000 !important;
               }
               .rdp button.cal-${idx}-next,
               .rdp button.rdp-day.cal-${idx}-next,
               .rdp button[class*="cal-${idx}-next"],
               .rdp .rdp-day.cal-${idx}-next,
               .rdp [class*="cal-${idx}-next"] {
-                background-color: ${color} !important;
-                background: ${color} !important;
+                background-color: ${colorPalette[idx % colorPalette.length]} !important;
+                background: ${colorPalette[idx % colorPalette.length]} !important;
                 color: #FFFFFF !important;
                 font-weight: 700 !important;
                 border-radius: 0.5rem !important;
                 opacity: 0.7 !important;
                 outline: 2px solid rgba(0,0,0,0.05) !important;
-                box-shadow: 0 1px 2px ${color}26 !important;
-              }
-              .rdp button.rdp-day_today.cal-${idx}-this,
-              .rdp button.rdp-day.rdp-day_today.cal-${idx}-this,
-              .rdp button.rdp-day.rdp-day_today[class*="cal-${idx}-this"] {
-                background-color: ${color} !important;
-                background: ${color} !important;
-                color: #FFFFFF !important;
-                border: 2px solid ${color} !important;
-                box-shadow: 0 3px 6px ${color}66 !important;
-              }
-              .rdp button.rdp-day_today.cal-${idx}-next,
-              .rdp button.rdp-day.rdp-day_today.cal-${idx}-next,
-              .rdp button.rdp-day.rdp-day_today[class*="cal-${idx}-next"] {
-                background-color: ${color} !important;
-                background: ${color} !important;
-                color: #FFFFFF !important;
-                border: 2px solid ${color} !important;
-                opacity: 0.85 !important;
-                box-shadow: 0 3px 6px ${color}66 !important;
+                box-shadow: 0 1px 2px ${colorPalette[idx % colorPalette.length]}26 !important;
               }
             `;
           })
@@ -1229,30 +1181,23 @@ const Bills = () => {
           opacity: 0.6 !important;
         }
         
-        /* Next Paycheck Date Marker */
+        /* Next Paycheck Date Marker - Black Flag */
         .rdp button.next-paycheck,
         .rdp button.rdp-day.next-paycheck,
         .rdp button[class*="next-paycheck"] {
-          border: 3px solid #00A86B !important;
-          border-style: dashed !important;
-          box-shadow: 0 0 0 2px rgba(0, 168, 107, 0.2) !important;
           position: relative !important;
         }
         
         .rdp button.next-paycheck::after {
-          content: "🚩" !important;
+          content: "🏴" !important;
           position: absolute !important;
-          top: -2px !important;
-          right: -2px !important;
-          font-size: 10px !important;
-          background: #00A86B !important;
-          border-radius: 50% !important;
-          width: 16px !important;
-          height: 16px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
+          top: -4px !important;
+          right: -4px !important;
+          font-size: 14px !important;
+          line-height: 1 !important;
+          filter: grayscale(100%) brightness(0) contrast(100%) !important;
           z-index: 10 !important;
+          display: block !important;
         }
       `}</style>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1328,33 +1273,33 @@ const Bills = () => {
                     (dateYear === thisYearNum && dateMonth > thisMonthNum);
                   
                   if (isPreviousMonth) {
-                    // Dates from previous month - gray background
-                    backgroundColor = "#E5E5E5";
+                    // Dates from previous month - very pale gray
+                    backgroundColor = "#F9F9F9";
                     textColor = "#757575";
                   } else if (isNextMonth) {
-                    // Dates from next month - light gray background
-                    backgroundColor = "#F5F5F5";
+                    // Dates from next month - very pale gray
+                    backgroundColor = "#F9F9F9";
                     textColor = "#757575";
                   } else if (isSameMonth(date, thisMonth)) {
                     // Dates in current month
                     if (dateOnly < today) {
-                      // Before today (gray) - not including today
-                      backgroundColor = "#E5E5E5";
+                      // Before today - very pale gray
+                      backgroundColor = "#F9F9F9";
                       textColor = "#757575";
                     } else if (nextPaycheckDate) {
                       const paycheckDate = startOfDay(nextPaycheckDate);
                       if (dateOnly <= paycheckDate) {
-                        // Today to paycheck (light yellow) - including today and paycheck
+                        // Today to paycheck (coasting days) - yellow
                         backgroundColor = "#FEF9E7";
                         textColor = "#856404";
                       } else {
-                        // After paycheck (light gray)
-                        backgroundColor = "#F5F5F5";
+                        // After paycheck - white or very pale gray
+                        backgroundColor = "#FFFFFF";
                         textColor = "#757575";
                       }
                     } else {
-                      // No paycheck date - all future dates are light gray
-                      backgroundColor = "#F5F5F5";
+                      // No paycheck date - white or very pale gray
+                      backgroundColor = "#FFFFFF";
                       textColor = "#757575";
                     }
                   }
@@ -1363,15 +1308,20 @@ const Bills = () => {
                   const buttonProps: any = { ...restProps };
                   
                   if (billsOnDate.length > 0) {
-                    // Use the first bill's color for the button
+                    // Dates with bills - use background color (white/pale gray/yellow) with black border
                     const firstBill = billsOnDate[0];
                     const billIdx = firstBill.idx;
-                    const billColor = colorPalette[billIdx % colorPalette.length];
+                    
+                    // Use the background color we determined (yellow for coasting, white/pale gray for others)
+                    const billBackgroundColor = backgroundColor || "#FFFFFF";
+                    // Always use dark text color so date number is visible
+                    const billTextColor = "#000000";
                     
                     buttonProps.style = {
-                      backgroundColor: billColor,
-                      color: '#FFFFFF',
-                      fontWeight: '700',
+                      ...props.style,
+                      backgroundColor: billBackgroundColor,
+                      color: billTextColor,
+                      fontWeight: '400',
                       borderRadius: '0.25rem',
                       width: '100%',
                       height: '100%',
@@ -1382,8 +1332,8 @@ const Bills = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: `0 2px 4px ${billColor}33`,
-                      ...props.style,
+                      border: '2px solid #000000',
+                      boxShadow: 'none',
                     };
                     buttonProps.className = cn(
                       className, 
@@ -1443,8 +1393,8 @@ const Bills = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      border: '3px dashed #00A86B',
-                      boxShadow: '0 0 0 2px rgba(0, 168, 107, 0.2)',
+                      backgroundColor: backgroundColor || "#FFFFFF",
+                      color: textColor || "#757575",
                       position: 'relative',
                       ...props.style,
                     };
@@ -1486,12 +1436,7 @@ const Bills = () => {
                       baseStyle.color = textColor;
                     }
                     
-                    // Apply today styling if needed
-                    if (isDateToday) {
-                      baseStyle.border = '2px solid #F59E0B';
-                      baseStyle.fontWeight = '600';
-                      baseStyle.boxShadow = '0 1px 3px rgba(245, 158, 11, 0.2)';
-                    }
+                    // No special today styling - keep it clean
                     
                     buttonProps.style = baseStyle;
                   } else {
